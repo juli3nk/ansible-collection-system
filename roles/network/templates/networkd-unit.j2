@@ -1,0 +1,24 @@
+[Match]
+Name={{ item.match_name }}
+
+[Network]
+{% if item.dhcp | default('') | length > 0 %}
+DHCP={{ item.dhcp }}
+{% endif %}
+{% for address in item.addresses | default([]) %}
+Address={{ address }}
+{% endfor %}
+{% if item.gateway | default('') | length > 0 %}
+Gateway={{ item.gateway }}
+{% endif %}
+{% for dns_server in item.dns_servers | default([]) %}
+DNS={{ dns_server }}
+{% endfor %}
+{% if (item.domains | default([])) | length > 0 %}
+Domains={{ item.domains | join(' ') }}
+{% endif %}
+
+{% if item.required_for_online is defined %}
+[Link]
+RequiredForOnline={{ item.required_for_online }}
+{% endif %}

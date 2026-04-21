@@ -1,0 +1,37 @@
+{{ ansible_managed | comment }}
+
+flush ruleset
+
+table inet filter {
+  chain input {
+    type filter hook input priority 0;
+    policy {{ nftables_input_policy }};
+
+{% if nftables_allow_loopback %}
+    iifname lo accept
+{% endif %}
+{% if nftables_allow_established %}
+    ct state established,related accept
+{% endif %}
+{% if nftables_allow_icmp %}
+    ip protocol icmp accept
+    ip6 nexthdr ipv6-icmp accept
+{% endif %}
+{% for port in nftables_allowed_tcp_ports %}
+    tcp dport {{ port }} accept
+{% endfor %}
+{% for port in nftables_allowed_udp_ports %}
+    udp dport {{ port }} accept
+{% endfor %}
+  }
+
+  chain forward {
+    type filter hook forward priority 0;
+    policy {{ nftables_forward_policy }};
+  }
+
+  chain output {
+    type filter hook output priority 0;
+    policy {{ nftables_output_policy }};
+  }
+}

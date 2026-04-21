@@ -1,0 +1,17 @@
+---
+- name: Install disk Linux utils
+  ansible.builtin.apt:
+    pkg: parted
+    state: present
+    update_cache: true
+
+- name: Create partition on additional disk
+  community.general.parted:
+    device: "{{ outer_item.device }}"
+    label: "{{ outer_item.part_label }}"
+    number: "{{ outer_item.part_number }}"
+    part_start: "{{ outer_item.part_start | default(omit) }}"
+    part_end: "{{ outer_item.part_end | default(omit) }}"
+    state: present
+  when:
+    - outer_item.device is defined

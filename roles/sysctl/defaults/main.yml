@@ -1,0 +1,11 @@
+---
+sysctl_reload: true
+sysctl_config_file: /etc/sysctl.d/99-ansible.conf
+
+# Merge-friendly sysctl definitions.
+# sysctl_settings_common: baseline keys shared for all hosts.
+# sysctl_settings_host: per-host overrides/additions.
+sysctl_settings_common: {}
+sysctl_settings_host: {}
+
+sysctl_settings: {}

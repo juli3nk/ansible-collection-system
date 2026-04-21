@@ -1,0 +1,6 @@
+---
+- name: Restart systemd-resolved
+  become: true
+  ansible.builtin.service:
+    name: "{{ dns_resolved_service }}"
+    state: restarted

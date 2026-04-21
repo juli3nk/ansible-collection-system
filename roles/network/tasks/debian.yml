@@ -1,0 +1,192 @@
+---
+- name: Check NetworkManager unit availability
+  ansible.builtin.command:
+    cmd: "systemctl list-unit-files --full --no-legend {{ network_networkmanager_service }}.service"
+  register: network_nm_unit_check
+  changed_when: false
+  failed_when: false
+  when: network_manage_services
+
+- name: Check systemd-networkd unit availability
+  ansible.builtin.command:
+    cmd: "systemctl list-unit-files --full --no-legend {{ network_systemd_networkd_service }}.service"
+  register: network_networkd_unit_check
+  changed_when: false
+  failed_when: false
+  when: network_manage_services
+
+- name: Check systemd-networkd-wait-online unit availability
+  ansible.builtin.command:
+    cmd: "systemctl list-unit-files --full --no-legend {{ network_systemd_networkd_wait_online_service }}.service"
+  register: network_networkd_wait_online_unit_check
+  changed_when: false
+  failed_when: false
+  when: network_manage_services
+
+- name: Detect available network services
+  ansible.builtin.set_fact:
+    network_nm_service_exists: "{{ (network_nm_unit_check.rc | default(1)) == 0 }}"
+    network_networkd_service_exists: "{{ (network_networkd_unit_check.rc | default(1)) == 0 }}"
+    network_networkd_wait_online_service_exists: "{{ (network_networkd_wait_online_unit_check.rc | default(1)) == 0 }}"
+  when: network_manage_services
+
+- name: Configure NetworkManager backend
+  when: network_backend == 'networkmanager'
+  block:
+    - name: Ensure NetworkManager package state
+      become: true
+      ansible.builtin.apt:
+        name: "{{ network_networkmanager_package }}"
+        state: "{{ 'present' if network_manage_packages else 'absent' }}"
+
+    - name: Ensure NetworkManager service state
+      become: true
+      ansible.builtin.service:
+        name: "{{ network_networkmanager_service }}"
+        enabled: true
+        state: started
+      when:
+        - network_manage_services
+        - network_nm_service_exists
+
+    - name: Ensure systemd-networkd service is disabled
+      become: true
+      ansible.builtin.service:
+        name: "{{ network_systemd_networkd_service }}"
+        enabled: false
+        state: stopped
+      when:
+        - network_manage_services
+        - network_networkd_service_exists
+
+    - name: Ensure systemd-networkd-wait-online service is disabled
+      become: true
+      ansible.builtin.service:
+        name: "{{ network_systemd_networkd_wait_online_service }}"
+        enabled: false
+        state: stopped
+      when:
+        - network_manage_services
+        - network_networkd_wait_online_service_exists
+
+- name: Configure systemd-networkd backend
+  when: network_backend == 'systemd-networkd'
+  block:
+    - name: Ensure NetworkManager package is absent
+      become: true
+      ansible.builtin.apt:
+        name: "{{ network_networkmanager_package }}"
+        state: absent
+    - name: Ensure NetworkManager service is disabled
+      become: true
+      ansible.builtin.service:
+        name: "{{ network_networkmanager_service }}"
+        enabled: false
+        state: stopped
+      when:
+        - network_manage_services
+        - network_nm_service_exists
+
+    - name: Ensure systemd-networkd directory exists
+      become: true
+      ansible.builtin.file:
+        path: "{{ network_systemd_network_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Initialize generated systemd-networkd units list
+      ansible.builtin.set_fact:
+        network_generated_networkd_units: []
+
+    - name: Build generated systemd-networkd units from network_interfaces
+      ansible.builtin.set_fact:
+        network_generated_networkd_units: "{{ (network_generated_networkd_units | default([])) + [generated_unit] }}"
+      vars:
+        generated_addresses: >-
+          {{
+            (([item.value.address] if (item.value.address is defined and item.value.address not in [none, '']) else []))
+            + (item.value.aliases | default([]))
+          }}
+        generated_unit:
+          filename: "40-{{ item.key }}.network"
+          match_name: "{{ item.key }}"
+          dhcp: "{{ 'yes' if (item.value.dhcp | default(true) | bool) else 'no' }}"
+          addresses: "{{ generated_addresses }}"
+          gateway: "{{ item.value.gateway | default('') }}"
+      loop: "{{ network_interfaces | dict2items | sort(attribute='key') }}"
+
+    - name: Build effective systemd-networkd units list
+      ansible.builtin.set_fact:
+        network_networkd_units_effective: "{{ (network_generated_networkd_units | default([])) + (network_networkd_units | default([])) }}"
+
+    - name: Ensure systemd-networkd units are present
+      become: true
+      ansible.builtin.template:
+        src: networkd-unit.j2
+        dest: "{{ network_systemd_network_dir }}/{{ item.filename }}"
+        owner: root
+        group: root
+        mode: '0644'
+      loop: "{{ network_networkd_units_effective }}"
+      notify: Restart systemd-networkd
+
+    - name: Ensure systemd-networkd service state
+      become: true
+      ansible.builtin.service:
+        name: "{{ network_systemd_networkd_service }}"
+        enabled: true
+        state: started
+      when:
+        - network_manage_services
+        - network_networkd_service_exists
+
+    - name: Ensure systemd-networkd-wait-online service state
+      become: true
+      ansible.builtin.service:
+        name: "{{ network_systemd_networkd_wait_online_service }}"
+        enabled: true
+        state: started
+      when:
+        - network_manage_services
+        - network_networkd_wait_online_service_exists
+
+- name: Configure static backend
+  when: network_backend == 'static'
+  block:
+    - name: Ensure NetworkManager package is absent
+      become: true
+      ansible.builtin.apt:
+        name: "{{ network_networkmanager_package }}"
+        state: absent
+
+    - name: Ensure NetworkManager service is disabled
+      become: true
+      ansible.builtin.service:
+        name: "{{ network_networkmanager_service }}"
+        enabled: false
+        state: stopped
+      when:
+        - network_manage_services
+        - network_nm_service_exists
+
+    - name: Ensure systemd-networkd service is disabled
+      become: true
+      ansible.builtin.service:
+        name: "{{ network_systemd_networkd_service }}"
+        enabled: false
+        state: stopped
+      when:
+        - network_manage_services
+        - network_networkd_service_exists
+
+    - name: Ensure systemd-networkd-wait-online service is disabled
+      become: true
+      ansible.builtin.service:
+        name: "{{ network_systemd_networkd_wait_online_service }}"
+        enabled: false
+        state: stopped
+      when:
+        - network_manage_services
+        - network_networkd_wait_online_service_exists

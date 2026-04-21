@@ -1,0 +1,3 @@
+{{ ansible_managed | comment }}
+
+%{{ sudo_admin_group_name }} ALL=(ALL) {{ 'NOPASSWD:' if sudo_admin_group_nopasswd else '' }}ALL

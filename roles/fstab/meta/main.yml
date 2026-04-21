@@ -1,0 +1,17 @@
+galaxy_info:
+  author: Julien K.
+  description: add entry to /etc/fstab file
+
+  license: MIT
+
+  min_ansible_version: 2.1
+
+  platforms:
+    - name: Debian
+      versions:
+        - all
+
+  galaxy_tags:
+    - fstab
+
+dependencies: []

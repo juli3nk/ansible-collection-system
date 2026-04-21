@@ -1,0 +1,56 @@
+---
+- name: Validate hostname role configuration
+  ansible.builtin.assert:
+    that:
+      - hostname_name | length > 0
+      - hostname_hosts_ip | length > 0
+    fail_msg: hostname_name and hostname_hosts_ip must be defined.
+
+- name: Validate extra /etc/hosts entries
+  ansible.builtin.assert:
+    that:
+      - item.ip is defined
+      - item.ip | length > 0
+      - item.names is defined
+      - item.names | length > 0
+    fail_msg: "Each hostname_hosts_extra_entries item must define ip and non-empty names."
+  loop: "{{ hostname_hosts_extra_entries }}"
+  when: hostname_manage_etc_hosts | bool
+
+- name: Set system hostname
+  become: true
+  ansible.builtin.hostname:
+    name: "{{ hostname_name }}"
+
+- name: Build /etc/hosts hostname entries
+  ansible.builtin.set_fact:
+    hostname_hosts_entries: >-
+      {{
+        (
+          ([hostname_fqdn] if hostname_fqdn | length > 0 else [])
+          + [hostname_name]
+          + hostname_hosts_aliases
+        ) | unique
+      }}
+  when: hostname_manage_etc_hosts | bool
+
+- name: Ensure hostname entry exists in /etc/hosts
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "^{{ hostname_hosts_ip | regex_escape }}\\s+"
+    line: "{{ hostname_hosts_ip }} {{ hostname_hosts_entries | join(' ') }}"
+    state: present
+    mode: "0644"
+  when: hostname_manage_etc_hosts | bool
+
+- name: Ensure extra entries exist in /etc/hosts
+  become: true
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "^{{ item.ip | regex_escape }}\\s+"
+    line: "{{ item.ip }} {{ item.names | unique | join(' ') }}"
+    state: present
+    mode: "0644"
+  loop: "{{ hostname_hosts_extra_entries }}"
+  when: hostname_manage_etc_hosts | bool

@@ -1,0 +1,6 @@
+---
+ca_certificates_ca_path: /usr/local/share/ca-certificates
+ca_certificates_update_trust_cert: /usr/sbin/update-ca-certificates
+ca_certificates_certauth: []
+#  - name: name.crt
+#    url: https://example.com/dl/ca/name.crt

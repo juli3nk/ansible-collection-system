@@ -1,0 +1,3 @@
+{% for item in (sysctl_settings_effective | default({})) | dict2items | sort(attribute='key') %}
+{{ item.key }} = {{ item.value }}
+{% endfor %}

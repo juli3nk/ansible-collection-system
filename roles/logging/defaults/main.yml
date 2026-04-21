@@ -1,0 +1,22 @@
+---
+logging_journal_config_path: /etc/systemd/journald.conf
+logging_journal_compression: true
+logging_journal_forward_console: false
+logging_journal_forward_syslog: "{{ true if logging_logging_rules | length > 0 else false }}"
+logging_journal_max_disk_size: 4G
+logging_journal_max_files: 4
+logging_journal_max_file_size: 1G
+logging_journal_sync_interval: 5m
+logging_journal_per_user: false
+logging_journal_services:
+  - systemd-journald.service
+  - systemd-journal-flush.service
+logging_logging_rules: []
+# - fqdn: syslog.example.com
+#   port: 8514
+#   facility: "*"
+#   level: "*"
+# - fqdn: auth.syslog.example.com
+#   port: 514
+#   facility: "auth,authpriv"
+#   level: "*"

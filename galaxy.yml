@@ -1,0 +1,54 @@
+#SPDX-License-Identifier: MIT
+---
+namespace: juli3nk
+name: system
+version: 1.0.0
+
+readme: README.md
+
+authors:
+- Julien K. (https://github.com/juli3nk)
+
+description: Ansible collection for system management
+
+license:
+- MIT
+license_file: 'LICENSE'
+
+tags:
+  - system
+  - management
+  - debian
+  - ca_certificates
+  - disk
+  - dns
+  - fail2ban
+  - fstab
+  - hostname
+  - identity
+  - logging
+  - nftables
+  - nodejs
+  - package
+  - shell
+  - ssh
+  - sudo
+  - sysctl
+  - time
+  - unattended-upgrades
+
+dependencies: {}
+
+repository: https://github.com/juli3nk/ansible-collection-system
+documentation: https://github.com/juli3nk/ansible-collection-system
+homepage: https://github.com/juli3nk/ansible-collection-system
+issues: https://github.com/juli3nk/ansible-collection-system/issues
+
+build_ignore:
+  - .config
+  - .github
+  - .gitignore
+  - changelogs
+  - roles/*/molecule
+  - tests
+  - '*.tar.gz'

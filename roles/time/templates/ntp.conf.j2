@@ -1,0 +1,16 @@
+{{ ansible_managed | comment }}
+
+# /etc/chrony/chrony.conf, managed by Ansible
+# See chrony.conf(5) for details.
+
+driftfile /var/lib/chrony/chrony.drift
+makestep 1.0 3
+rtcsync
+
+# Use servers from the NTP Pool Project.
+{% for item in time_ntp_servers %}
+pool {{ item }}
+{% endfor %}
+
+# Fallback source.
+server {{ time_ntp_fallback_server }}

@@ -1,0 +1,12 @@
+---
+- name: Restart Journal
+  ansible.builtin.service:
+    name: "{{ item }}"
+    enabled: true
+    state: restarted
+  loop: "{{ logging_journal_services }}"
+
+- name: Restart Syslog
+  ansible.builtin.service:
+    name: rsyslog
+    state: restarted

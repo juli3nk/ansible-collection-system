@@ -1,0 +1,19 @@
+galaxy_info:
+  author: Julien K.
+  description: manage network backend services and optional systemd-networkd units
+
+  license: MIT
+
+  min_ansible_version: 2.1
+
+  platforms:
+    - name: Debian
+      versions:
+      - all
+
+  galaxy_tags:
+    - networking
+    - networkmanager
+    - systemd-networkd
+
+dependencies: []

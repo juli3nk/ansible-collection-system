@@ -1,0 +1,19 @@
+galaxy_info:
+  author: Julien K.
+  description: configure unattended security updates on Debian hosts
+
+  license: MIT
+
+  min_ansible_version: 2.1
+
+  platforms:
+    - name: Debian
+      versions:
+        - all
+
+  galaxy_tags:
+    - security
+    - apt
+    - unattended-upgrades
+
+dependencies: []

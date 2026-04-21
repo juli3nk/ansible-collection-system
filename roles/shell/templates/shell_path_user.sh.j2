@@ -1,0 +1,7 @@
+{% for path_entry in shell_path_user_entries %}
+case ":${PATH}:" in
+  *:{{ path_entry }}:*) ;;
+  *) PATH="{{ path_entry }}:${PATH}" ;;
+esac
+{% endfor %}
+export PATH

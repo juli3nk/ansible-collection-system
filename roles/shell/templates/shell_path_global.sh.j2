@@ -1,0 +1,9 @@
+{{ ansible_managed | comment }}
+
+{% for path_entry in shell_global_path_prepend %}
+case ":${PATH}:" in
+  *:{{ path_entry }}:*) ;;
+  *) PATH="{{ path_entry }}:${PATH}" ;;
+esac
+{% endfor %}
+export PATH

@@ -1,0 +1,41 @@
+---
+# Network backend:
+# - networkmanager: enable NetworkManager, disable systemd-networkd
+# - systemd-networkd: enable systemd-networkd, disable NetworkManager
+# - static: disable both services (interfaces managed externally)
+network_backend: systemd-networkd
+
+network_manage_packages: true
+network_manage_services: true
+
+network_networkmanager_package: network-manager
+network_networkmanager_service: NetworkManager
+
+network_systemd_networkd_service: systemd-networkd
+network_systemd_networkd_wait_online_service: systemd-networkd-wait-online
+network_systemd_network_dir: /etc/systemd/network
+
+# High-level interface model (NixOS-like) used to generate systemd-networkd units.
+# Keys are interface names.
+# Example:
+# network_interfaces:
+#   enp1s0:
+#     dhcp: true
+#     address: null
+#     aliases: []
+#     gateway: null
+network_interfaces: {}
+
+# Optional systemd-networkd .network units rendered when backend=systemd-networkd.
+# These are appended after auto-generated units from network_interfaces.
+# Example:
+# network_networkd_units:
+#   - filename: 10-lan.network
+#     match_name: enp1s0
+#     dhcp: ipv4
+#     addresses: []
+#     gateway: ''
+#     dns_servers: []
+#     domains: []
+#     required_for_online: routable
+network_networkd_units: []

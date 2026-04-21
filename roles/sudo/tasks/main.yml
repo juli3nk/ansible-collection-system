@@ -1,0 +1,108 @@
+---
+- name: Setup sudoers rule for automation user
+  become: true
+  ansible.builtin.template:
+    src: sudoers_automation_user.j2
+    dest: "{{ sudo_automation_user_rule_path }}"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: "{{ sudo_visudo_path }} -cf %s"
+  when:
+    - sudo_manage_automation_user_rule | bool
+    - sudo_automation_user | length > 0
+
+- name: Remove sudoers rule for automation user when cleanup is requested
+  become: true
+  ansible.builtin.file:
+    path: "{{ sudo_automation_user_rule_path }}"
+    state: absent
+  when:
+    - sudo_cleanup_automation_user_rule | bool
+
+- name: Setup sudoers rule for admin group
+  when: sudo_manage_admin_group_rule | bool
+  block:
+    - name: Ensure admin group exists for sudoers rule
+      become: true
+      ansible.builtin.command: "getent group {{ sudo_admin_group_name }}"
+      register: sudo_admin_group_check
+      changed_when: false
+      failed_when: false
+
+    - name: Assert admin group exists for sudoers rule
+      ansible.builtin.assert:
+        that:
+          - sudo_admin_group_check.rc == 0
+        fail_msg: >-
+          Group '{{ sudo_admin_group_name }}' does not exist.
+          Create/manage it before enabling sudo admin group rule.
+
+    - name: Apply sudoers rule for admin group
+      become: true
+      ansible.builtin.template:
+        src: sudoers_admin_nopasswd.j2
+        dest: "{{ sudo_admin_group_rule_path }}"
+        owner: root
+        group: root
+        mode: '0440'
+        validate: "{{ sudo_visudo_path }} -cf %s"
+
+- name: Configure sudo timestamp timeout
+  become: true
+  ansible.builtin.copy:
+    dest: "{{ sudo_timeout_rule_path }}"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: "{{ sudo_visudo_path }} -cf %s"
+    content: "Defaults timestamp_timeout={{ sudo_timestamp_timeout }}\n"
+  when: sudo_timestamp_timeout is not none
+
+- name: Ensure automation user is in admin group before removing cloud-init sudoers
+  when:
+    - sudo_manage_cloud_init_rule | bool
+    - sudo_require_automation_user_in_admin_group | bool
+    - not sudo_manage_automation_user_rule | bool
+    - sudo_automation_user | length > 0
+  block:
+    - name: Get automation user admin group membership
+      become: true
+      ansible.builtin.command: "id -nG {{ sudo_automation_user }}"
+      register: sudo_automation_user_groups
+      changed_when: false
+      failed_when: false
+
+    - name: Assert automation user can escalate through admin group
+      ansible.builtin.assert:
+        that:
+          - sudo_automation_user_groups.rc == 0
+          - sudo_admin_group_name in (sudo_automation_user_groups.stdout.split())
+        fail_msg: >-
+          Automation user '{{ sudo_automation_user }}' is not in '{{ sudo_admin_group_name }}'.
+          Add it in identity role before removing cloud-init sudoers rule.
+
+- name: Check current session can use sudo non-interactively
+  ansible.builtin.command: sudo -n true
+  register: sudo_noninteractive_check
+  changed_when: false
+  failed_when: false
+  when: sudo_manage_cloud_init_rule | bool
+
+- name: Warn when cloud-init sudoers removal is deferred
+  ansible.builtin.debug:
+    msg: >-
+      Skipping removal of '{{ sudo_cloud_init_rule_path }}' because current session
+      cannot run sudo non-interactively yet. Re-run playbook after reconnect.
+  when:
+    - sudo_manage_cloud_init_rule | bool
+    - sudo_noninteractive_check.rc != 0
+
+- name: Remove cloud-init sudoers rule
+  become: true
+  ansible.builtin.file:
+    path: "{{ sudo_cloud_init_rule_path }}"
+    state: absent
+  when:
+    - sudo_manage_cloud_init_rule | bool
+    - sudo_noninteractive_check.rc == 0

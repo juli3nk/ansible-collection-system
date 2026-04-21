@@ -1,0 +1,54 @@
+---
+- name: Include group tasks
+  ansible.builtin.include_tasks: group.yml
+  loop: "{{ identity_groups | default([]) }}"
+  loop_control:
+    loop_var: outer_item
+  when:
+    - identity_groups | length > 0
+
+- name: Build effective identity users list
+  ansible.builtin.set_fact:
+    identity_users_effective: >-
+      {{
+        (
+          (identity_users_common | default({}))
+          | combine(identity_users_host | default({}), recursive=True)
+          | dict2items
+          | map(attribute='value')
+          | list
+        )
+        if (
+          (identity_users_common | default({}) | length > 0)
+          or (identity_users_host | default({}) | length > 0)
+        )
+        else (identity_users | default([]))
+      }}
+
+- name: Manage admin group from effective identity users
+  when: identity_manage_admin_group | bool
+  block:
+    - name: Check if any effective user requires admin group
+      ansible.builtin.set_fact:
+        identity_has_admin_users: >-
+          {{
+            (identity_users_effective | default([]))
+            | selectattr('admin', 'defined')
+            | selectattr('admin')
+            | list
+            | length > 0
+          }}
+
+    - name: Ensure admin group is present when required by users
+      ansible.builtin.group:
+        name: "{{ identity_admin_group_name }}"
+        state: present
+      when: identity_has_admin_users | bool
+
+- name: Include user tasks
+  ansible.builtin.include_tasks: user.yml
+  loop: "{{ identity_users_effective | default([]) }}"
+  loop_control:
+    loop_var: outer_item
+  when:
+    - identity_users_effective | length > 0

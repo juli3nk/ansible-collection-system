@@ -1,0 +1,32 @@
+---
+shell_name: bash
+
+shell_prompt_enabled: true
+shell_prompt_state: present
+shell_prompt_target_file: /etc/profile.d/bash_prompt.sh
+
+shell_global_path_prepend: []
+shell_global_path_target_file: /etc/profile.d/shell_path.sh
+
+shell_manage_user_path: true
+# Map of username -> list of PATH entries to prepend.
+# Example:
+# shell_user_path_prepend:
+#   openclaw:
+#     - /home/openclaw/.npm-global/bin
+shell_user_path_prepend: {}
+shell_user_path_target_file: .profile
+
+shell_user_bashrc_users: []
+
+# Map of username -> list of managed bashrc blocks.
+# Example:
+# shell_user_bashrc_extras:
+#   openclaw:
+#     - id: openclaw-env
+#       block: |
+#         export NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/kazmen-root.crt
+shell_user_bashrc_extras: {}
+
+# Ensure /run/user/<uid> exists for users managed via shell_user_bashrc_extras.
+shell_ensure_user_runtime_dirs: false

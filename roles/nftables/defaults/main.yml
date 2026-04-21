@@ -1,0 +1,19 @@
+---
+nftables_enabled: true
+nftables_package: nftables
+nftables_install_iptables_compat: false
+nftables_iptables_package: nftables-iptables
+nftables_service: nftables
+nftables_config_file: /etc/nftables.conf
+
+nftables_input_policy: drop
+nftables_forward_policy: drop
+nftables_output_policy: accept
+
+nftables_allow_established: true
+nftables_allow_loopback: true
+nftables_allow_icmp: true
+
+nftables_allowed_tcp_ports:
+  - 22
+nftables_allowed_udp_ports: []

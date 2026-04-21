@@ -1,0 +1,114 @@
+---
+- name: Ensure provided user password is already hashed
+  ansible.builtin.assert:
+    that:
+      - outer_item.password is match('^\\$[0-9A-Za-z]+\\$.+')
+    fail_msg: >-
+      User '{{ outer_item.name }}' password must be a hash (for example generated
+      with mkpasswd --method=SHA-512), not plaintext.
+  when: outer_item.password is defined
+
+- name: Ensure specified users are present
+  ansible.builtin.user:
+    append: true
+    name: "{{ outer_item.name }}"
+    comment: "{{ outer_item.comment | default(omit) }}"
+    create_home: "{{ outer_item.create_home | default(omit) }}"
+    home: "{{ outer_item.home | default(omit) }}"
+    uid: "{{ outer_item.uid | default(omit) }}"
+    group: "{{ outer_item.group | default(omit) }}"
+    groups: "{{ outer_item.groups | default('') }}"
+    # Only set password when explicitly provided, or when deriving it from username.
+    password: >-
+      {{
+        outer_item.password
+        if (outer_item.password is defined)
+        else (
+          outer_item.name
+          | password_hash(
+              'sha512',
+              (
+                (identity_username_password_salt ~ outer_item.name)
+                | regex_replace('[^A-Za-z0-9./]', 'x')
+                | truncate(16, true, '')
+              )
+            )
+        )
+        if (outer_item.password_from_username | default(false) | bool)
+        else omit
+      }}
+    update_password: >-
+      {{
+        'on_create'
+        if ((outer_item.password is defined) or (outer_item.password_from_username | default(false) | bool))
+        else omit
+      }}
+    shell: "{{ outer_item.shell | default('/bin/bash') }}"
+  when: outer_item.create
+
+- name: Force password change on first login
+  ansible.builtin.command: "chage -d 0 {{ outer_item.name }}"
+  changed_when: false
+  when:
+    - (outer_item.password_force_change | default(false) | bool)
+      or (outer_item.password_from_username | default(false) | bool)
+
+- name: Ensure SSH directory exists in user home directory
+  when:
+    - outer_item.ssh
+    - outer_item.create_home | default(true) | bool
+  block:
+    - name: Get user info
+      ansible.builtin.getent:
+        database: 'passwd'
+        key: "{{ outer_item.name }}"
+    - name: Does ssh directory exists
+      ansible.builtin.stat:
+        path: "{{ ansible_facts.getent_passwd[outer_item.name][4] }}/.ssh"
+      register: results
+    - name: Create ssh directory
+      ansible.builtin.file:
+        path: "{{ ansible_facts.getent_passwd[outer_item.name][4] }}/.ssh"
+        state: directory
+        owner: "{{ outer_item.name }}"
+        group: "{{ outer_item.name }}"
+        mode: '0700'
+      when: not results.stat.exists
+
+- name: Ensure authorized_keys are managed
+  ansible.posix.authorized_key:
+    user: "{{ outer_item.name }}"
+    key: "{{ lookup('url', identity_gitrepo_url ~ '/' ~ item.gitrepo_username ~ '.keys', split_lines=False) }}"
+    key_options: "{{ item.options | default(omit) }}"
+    state: present
+    manage_dir: false
+  loop: "{{ outer_item.authorized | default([]) }}"
+  when:
+    - outer_item.authorized is defined
+    - outer_item.create_home | default(true) | bool
+    - identity_gitrepo_provider in [ 'github', 'gitlab' ]
+    - identity_gitrepo_url is defined
+
+- name: Ensure admin users are added to admin group
+  when:
+    - outer_item.admin
+  block:
+    - name: Check admin group exists
+      ansible.builtin.command: "getent group {{ identity_admin_group_name }}"
+      register: identity_admin_group_check
+      changed_when: false
+      failed_when: false
+
+    - name: Ensure admin group exists before assigning user
+      ansible.builtin.assert:
+        that:
+          - identity_admin_group_check.rc == 0
+        fail_msg: >-
+          Admin group '{{ identity_admin_group_name }}' does not exist.
+          Create it (for example via identity_groups) before setting users with admin=true.
+
+    - name: Add user to admin group
+      ansible.builtin.user:
+        name: "{{ outer_item.name }}"
+        groups: "{{ identity_admin_group_name }}"
+        append: true

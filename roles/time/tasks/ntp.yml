@@ -1,0 +1,30 @@
+---
+- name: Ensure Chrony package is installed
+  ansible.builtin.package:
+    name: "{{ time_ntp_package }}"
+    state: present
+  when: time_ntp_enabled | bool
+
+- name: Generate Chrony configuration file
+  ansible.builtin.template:
+    src: "{{ time_ntp_config_file | basename }}.j2"
+    dest: "{{ time_ntp_config_file }}"
+    mode: '0644'
+  notify: Restart chrony
+  when: time_ntp_manage_config | bool
+
+- name: Ensure Chrony is running and enabled as configured
+  ansible.builtin.service:
+    name: "{{ time_ntp_service }}"
+    state: started
+    enabled: true
+  when: time_ntp_enabled | bool
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Ensure Chrony is stopped and disabled as configured
+  ansible.builtin.service:
+    name: "{{ time_ntp_service }}"
+    state: stopped
+    enabled: false
+  when: not (time_ntp_enabled | bool)
+  ignore_errors: "{{ ansible_check_mode }}"

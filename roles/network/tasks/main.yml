@@ -1,0 +1,19 @@
+---
+- name: Validate network role configuration
+  ansible.builtin.assert:
+    that:
+      - network_backend in ['networkmanager', 'systemd-networkd', 'static']
+      - network_interfaces is mapping
+      - network_networkd_units is iterable
+    fail_msg: >-
+      Invalid network configuration. network_backend must be one of:
+      networkmanager, systemd-networkd, static.
+
+- name: Check supported OS family
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] | lower == 'debian'
+    fail_msg: "network role currently supports only Debian family hosts."
+
+- name: Include OS-specific tasks
+  ansible.builtin.include_tasks: debian.yml

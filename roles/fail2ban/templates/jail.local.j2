@@ -1,0 +1,12 @@
+{{ ansible_managed | comment }}
+
+[DEFAULT]
+ignoreip = {{ fail2ban_ignoreip | join(' ') }}
+bantime = {{ fail2ban_bantime }}
+findtime = {{ fail2ban_findtime }}
+maxretry = {{ fail2ban_maxretry }}
+
+[sshd]
+enabled = {{ 'true' if fail2ban_sshd_enabled else 'false' }}
+port = {{ fail2ban_sshd_port }}
+logpath = {{ fail2ban_sshd_logpath }}

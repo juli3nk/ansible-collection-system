@@ -1,0 +1,42 @@
+---
+- name: Check supported OS family
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] | lower == 'debian'
+    fail_msg: "unattended-upgrades role currently supports only Debian family hosts."
+
+- name: Ensure unattended-upgrades package state matches unattended_upgrades_enabled
+  become: true
+  ansible.builtin.apt:
+    name: "{{ unattended_upgrades_package }}"
+    state: "{{ 'present' if unattended_upgrades_enabled else 'absent' }}"
+
+- name: Ensure unattended-upgrades periodic APT config is present
+  become: true
+  ansible.builtin.template:
+    src: 20auto-upgrades.j2
+    dest: "{{ unattended_upgrades_auto_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: unattended_upgrades_enabled
+
+- name: Ensure unattended-upgrades rules config is present
+  become: true
+  ansible.builtin.template:
+    src: 52unattended-upgrades.j2
+    dest: "{{ unattended_upgrades_rules_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: unattended_upgrades_enabled
+
+- name: Ensure unattended-upgrades config files are absent when disabled
+  become: true
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ unattended_upgrades_auto_file }}"
+    - "{{ unattended_upgrades_rules_file }}"
+  when: not unattended_upgrades_enabled

@@ -1,0 +1,28 @@
+---
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Ensure tzdata package is installed
+  ansible.builtin.package:
+    name: "{{ time_tzdata_package }}"
+    state: present
+  when:
+    - (ansible_facts['os_family'] | lower) == 'debian'
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ time_timezone }}"
+
+- name: Remove other time synchronization packages if present
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ time_ntp_legacy_packages }}"
+
+- name: Ensure chrony is configured
+  ansible.builtin.include_tasks: ntp.yml
+  when: time_ntp_enabled
+
+- name: Ensure systemd-timesyncd is configured
+  ansible.builtin.include_tasks: systemd-timesync.yml
+  when: not time_ntp_enabled

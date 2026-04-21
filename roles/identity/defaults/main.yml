@@ -1,0 +1,32 @@
+---
+identity_gitrepo_provider: ''
+identity_gitrepo_url: ''
+
+identity_groups: []
+# - name: testgroup1
+#   gid: 987
+
+# Merge-friendly user definitions.
+# identity_users_common: baseline users shared for all hosts.
+# identity_users_host: per-host overrides/additions.
+identity_users_common: {}
+identity_users_host: {}
+
+identity_users: []
+# - name: testuser
+#   comment: Some Cool Service Account
+#   create_home: yes
+#   home: "{{ item.home | default(omit) }}"
+#   group: testuser
+#   groups: testgroup1,testgroup2
+#   uid: 987
+#   shell: /bin/bash
+#   authorized:
+#     - gitrepo_username: 'testuser'
+
+identity_admin_group_name: 'admin'
+identity_manage_admin_group: true
+
+# Salt prefix used when deriving password hash from username.
+# Only used for users with password_from_username: true.
+identity_username_password_salt: 'identity'

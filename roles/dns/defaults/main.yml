@@ -1,0 +1,18 @@
+---
+# DNS resolver mode:
+# - dhcp: keep DNS managed by DHCP/network stack
+# - resolved: manage DNS with systemd-resolved
+# - static: write a static /etc/resolv.conf
+dns_mode: dhcp
+
+dns_nameservers: []
+dns_fallback_servers:
+  - 1.1.1.1
+  - 1.0.0.1
+dns_domains: []
+dns_enable_dnssec: false
+dns_enable_cache: true
+
+dns_resolved_config_path: /etc/systemd/resolved.conf
+dns_resolved_service: systemd-resolved
+dns_static_resolv_conf_path: /etc/resolv.conf

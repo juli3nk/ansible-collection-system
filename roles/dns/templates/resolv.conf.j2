@@ -1,0 +1,8 @@
+{{ ansible_managed | comment }}
+{% for ns in dns_nameservers %}
+nameserver {{ ns }}
+{% endfor %}
+options edns0 trust-ad
+{% if dns_domains | length > 0 %}
+search {{ dns_domains | join(' ') }}
+{% endif %}

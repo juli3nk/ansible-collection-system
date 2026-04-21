@@ -1,0 +1,38 @@
+---
+- name: Ensure that the systemd-timesyncd package is present
+  ansible.builtin.package:
+    name: "{{ time_timesyncd_package }}"
+    state: present
+
+- name: Configure time synchronization settings
+  ansible.builtin.lineinfile:
+    dest: /etc/systemd/timesyncd.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    insertafter: '\[Time\]'
+    backrefs: true
+    state: present
+    mode: '0644'
+  loop:
+    - regexp: '^\s*#?\s*(NTP=).*$'
+      line: 'NTP={{ time_ntp_servers | join(" ") }}'
+    - regexp: '^\s*#?\s*(ConnectionRetrySec=).*$'
+      line: 'ConnectionRetrySec={{ time_timesyncd_connection_retry }}'
+    - regexp: '^\s*#?\s*(RootDistanceMaxSec=).*$'
+      line: 'RootDistanceMaxSec={{ time_timesyncd_root_distance_max }}'
+    - regexp: '^\s*#?\s*(PollIntervalMinSec=).*$'
+      line: 'PollIntervalMinSec={{ time_timesyncd_poll_interval_min }}'
+    - regexp: '^\s*#?\s*(PollIntervalMaxSec=).*$'
+      line: 'PollIntervalMaxSec={{ time_timesyncd_poll_interval_max }}'
+  notify:
+    - Restart timesyncd
+
+- name: Disable systemd-timesyncd if it's running but chrony is enabled
+  ansible.builtin.service:
+    name: systemd-timesyncd.service
+    enabled: false
+    state: stopped
+  when:
+    - time_ntp_enabled | bool
+    - '"systemd-timesyncd.service" in ansible_facts.services'
+    - ansible_facts.services["systemd-timesyncd.service"]["status"] != "not-found"

@@ -1,0 +1,6 @@
+---
+- name: Restart systemd-networkd
+  become: true
+  ansible.builtin.service:
+    name: "{{ network_systemd_networkd_service }}"
+    state: restarted

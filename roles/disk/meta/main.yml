@@ -1,0 +1,18 @@
+galaxy_info:
+  author: Julien K.
+  description: partition new disk
+
+  license: MIT
+
+  min_ansible_version: "2.20"
+
+  platforms:
+    - name: Debian
+      versions:
+        - all
+
+  galaxy_tags:
+    - disk
+    - parted
+
+dependencies: []

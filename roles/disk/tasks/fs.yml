@@ -1,0 +1,10 @@
+---
+- name: Create filesystem in partition
+  community.general.filesystem:
+    dev: "{{ outer_item.device }}"
+    fstype: "{{ outer_item.fs_type }}"
+    force: "{{ outer_item.fs_force | default(omit) }}"
+    opts: "{{ outer_item.fs_opts | default(omit) }}"
+    state: present
+  when:
+    - outer_item.device is defined

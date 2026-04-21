@@ -1,0 +1,7 @@
+---
+- name: Ensure mountpoints are examined
+  ansible.builtin.include_tasks: mounts.yml
+  when: fstab_mounts | length > 0
+  loop: "{{ fstab_mounts | default([]) }}"
+  loop_control:
+    loop_var: outer_item

@@ -1,0 +1,109 @@
+---
+- name: Add shell prompt script
+  ansible.builtin.template:
+    src: "{{ shell_name }}_prompt.sh.j2"
+    dest: "{{ shell_prompt_target_file }}"
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+  when:
+    - shell_prompt_enabled | bool
+    - shell_prompt_state == 'present'
+
+- name: Remove shell prompt script
+  ansible.builtin.file:
+    path: "{{ shell_prompt_target_file }}"
+    state: 'absent'
+  when:
+    - (not shell_prompt_enabled | bool) or shell_prompt_state == 'absent'
+
+- name: Ensure global PATH profile snippet is present
+  ansible.builtin.template:
+    src: shell_path_global.sh.j2
+    dest: "{{ shell_global_path_target_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: shell_global_path_prepend | length > 0
+
+- name: Ensure global PATH profile snippet is absent when no global paths are configured
+  ansible.builtin.file:
+    path: "{{ shell_global_path_target_file }}"
+    state: absent
+  when: shell_global_path_prepend | length == 0
+
+- name: Resolve shell user homes for per-user PATH management
+  ansible.builtin.command: "getent passwd {{ item.key }}"
+  register: shell_user_getent_results
+  changed_when: false
+  failed_when: shell_user_getent_results.rc != 0
+  loop: "{{ shell_user_path_prepend | dict2items }}"
+  when:
+    - shell_manage_user_path | bool
+    - shell_user_path_prepend | length > 0
+
+- name: Ensure per-user PATH snippet is present
+  ansible.builtin.blockinfile:
+    path: "{{ item.stdout.split(':')[5] }}/{{ shell_user_path_target_file }}"
+    create: true
+    owner: "{{ item.item.key }}"
+    group: "{{ item.item.key }}"
+    mode: '0644'
+    marker: "# {mark} ANSIBLE MANAGED PATH ENTRIES"
+    block: "{{ lookup('template', 'shell_path_user.sh.j2') }}"
+  vars:
+    shell_path_user_entries: "{{ item.item.value }}"
+  loop: "{{ shell_user_getent_results.results | default([]) }}"
+  when:
+    - shell_manage_user_path | bool
+    - shell_user_path_prepend | length > 0
+
+- name: Resolve shell user homes for per-user bashrc extras management
+  ansible.builtin.command: "getent passwd {{ item.key }}"
+  register: shell_user_bashrc_extras_getent_results
+  changed_when: false
+  failed_when: shell_user_bashrc_extras_getent_results.rc != 0
+  loop: "{{ shell_user_bashrc_extras | dict2items }}"
+  when: shell_user_bashrc_extras | length > 0
+
+- name: Resolve shell user homes for per-user bashrc template management
+  ansible.builtin.command: "getent passwd {{ item }}"
+  register: shell_user_bashrc_getent_results
+  changed_when: false
+  failed_when: shell_user_bashrc_getent_results.rc != 0
+  loop: "{{ shell_user_bashrc_users }}"
+  when: shell_user_bashrc_users | length > 0
+
+- name: Ensure per-user bashrc template is present
+  ansible.builtin.template:
+    src: bashrc.j2
+    dest: "{{ item.stdout.split(':')[5] }}/.bashrc"
+    owner: "{{ item.item }}"
+    group: "{{ item.item }}"
+    mode: '0644'
+  loop: "{{ shell_user_bashrc_getent_results.results | default([]) }}"
+  when: shell_user_bashrc_users | length > 0
+
+- name: Ensure per-user bashrc extras blocks are present
+  ansible.builtin.blockinfile:
+    path: "{{ item.0.stdout.split(':')[5] }}/.bashrc"
+    create: true
+    owner: "{{ item.0.item.key }}"
+    group: "{{ item.0.item.key }}"
+    mode: '0644'
+    marker: "# {mark} ANSIBLE MANAGED BASHRC - {{ item.1.id }}"
+    block: "{{ item.1.block }}"
+  loop: "{{ query('subelements', shell_user_bashrc_extras_getent_results.results | default([]), 'item.value') }}"
+  when: shell_user_bashrc_extras | length > 0
+
+- name: Ensure per-user runtime directories are present
+  ansible.builtin.file:
+    path: "/run/user/{{ item.stdout.split(':')[2] }}"
+    state: directory
+    owner: "{{ item.item.key }}"
+    group: "{{ item.item.key }}"
+    mode: '0700'
+  loop: "{{ shell_user_bashrc_extras_getent_results.results | default([]) }}"
+  when:
+    - shell_user_bashrc_extras | length > 0
+    - shell_ensure_user_runtime_dirs | bool

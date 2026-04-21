@@ -1,0 +1,18 @@
+---
+- name: Install CA certificate package
+  ansible.builtin.package:
+    name: ca-certificates
+    state: present
+
+- name: Ensure custom certificate authority files are present
+  ansible.builtin.get_url:
+    dest: "{{ ca_certificates_ca_path }}/{{ item.name }}"
+    group: 'root'
+    owner: 'root'
+    mode: '0444'
+    url: "{{ item.url }}"
+  loop: "{{ ca_certificates_certauth }}"
+  notify: Update trusted certificate authorities
+  when:
+    - ca_certificates_certauth | length > 0
+    - not ansible_check_mode   # (Bug ansible/ansible#65687)

@@ -1,0 +1,17 @@
+galaxy_info:
+  author: Julien K.
+  description: manage CA certificates
+
+  license: MIT
+
+  min_ansible_version: 2.1
+
+  platforms:
+    - name: Debian
+      versions:
+        - all
+
+  galaxy_tags:
+    - ca-certificates
+
+dependencies: []

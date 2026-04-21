@@ -1,0 +1,103 @@
+---
+- name: Validate DNS role configuration
+  ansible.builtin.assert:
+    that:
+      - dns_mode in ['dhcp', 'resolved', 'static']
+      - dns_mode != 'dhcp' or dns_nameservers | length == 0
+      - dns_mode == 'resolved' or not dns_enable_dnssec | bool
+      - dns_mode == 'resolved' or dns_fallback_servers == ['1.1.1.1', '1.0.0.1']
+    fail_msg: >-
+      Invalid DNS configuration. dns_mode must be dhcp/resolved/static.
+      dns_nameservers is ignored in dhcp mode.
+      dns_enable_dnssec and custom dns_fallback_servers are only supported in resolved mode.
+
+- name: Configure DNS with systemd-resolved
+  when: dns_mode == 'resolved'
+  block:
+    - name: Ensure systemd-resolved configuration is present
+      become: true
+      ansible.builtin.template:
+        src: resolved.conf.j2
+        dest: "{{ dns_resolved_config_path }}"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart systemd-resolved
+
+    - name: Ensure systemd-resolved is enabled and running
+      become: true
+      ansible.builtin.service:
+        name: "{{ dns_resolved_service }}"
+        enabled: true
+        state: started
+
+    - name: Ensure /etc/resolv.conf points to systemd-resolved stub
+      become: true
+      ansible.builtin.file:
+        src: /run/systemd/resolve/stub-resolv.conf
+        dest: "{{ dns_static_resolv_conf_path }}"
+        state: link
+        force: true
+
+- name: Configure static resolver
+  when: dns_mode == 'static'
+  block:
+    - name: Ensure static mode has at least one nameserver
+      ansible.builtin.assert:
+        that:
+          - dns_nameservers | length > 0
+        fail_msg: dns_nameservers must contain at least one entry in static mode.
+
+    - name: Ensure systemd-resolved is disabled for static mode
+      become: true
+      ansible.builtin.service:
+        name: "{{ dns_resolved_service }}"
+        enabled: false
+        state: stopped
+
+    - name: Check /etc/resolv.conf current state
+      become: true
+      ansible.builtin.stat:
+        path: "{{ dns_static_resolv_conf_path }}"
+      register: dns_resolv_conf_stat
+
+    - name: Remove /etc/resolv.conf symlink when static mode is used
+      become: true
+      ansible.builtin.file:
+        path: "{{ dns_static_resolv_conf_path }}"
+        state: absent
+      when: dns_resolv_conf_stat.stat.islnk | default(false)
+
+    - name: Ensure static /etc/resolv.conf is present
+      become: true
+      ansible.builtin.template:
+        src: resolv.conf.j2
+        dest: "{{ dns_static_resolv_conf_path }}"
+        owner: root
+        group: root
+        mode: '0644'
+
+- name: Configure DNS in DHCP mode
+  when: dns_mode == 'dhcp'
+  block:
+    - name: Ensure systemd-resolved is disabled in DHCP mode
+      become: true
+      ansible.builtin.service:
+        name: "{{ dns_resolved_service }}"
+        enabled: false
+        state: stopped
+
+    - name: Check /etc/resolv.conf current state in DHCP mode
+      become: true
+      ansible.builtin.stat:
+        path: "{{ dns_static_resolv_conf_path }}"
+      register: dns_resolv_conf_dhcp_stat
+
+    - name: Remove stale systemd-resolved symlink in DHCP mode
+      become: true
+      ansible.builtin.file:
+        path: "{{ dns_static_resolv_conf_path }}"
+        state: absent
+      when:
+        - dns_resolv_conf_dhcp_stat.stat.islnk | default(false)
+        - (dns_resolv_conf_dhcp_stat.stat.lnk_source | default('')) is match('^/run/systemd/resolve/')

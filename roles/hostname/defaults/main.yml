@@ -1,0 +1,8 @@
+---
+hostname_name: "{{ inventory_hostname }}"
+hostname_fqdn: ""
+
+hostname_manage_etc_hosts: true
+hostname_hosts_ip: "127.0.1.1"
+hostname_hosts_aliases: []
+hostname_hosts_extra_entries: []

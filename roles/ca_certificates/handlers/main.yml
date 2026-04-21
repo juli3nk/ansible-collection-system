@@ -1,0 +1,4 @@
+---
+- name: Update trusted certificate authorities
+  ansible.builtin.command:
+    cmd: "{{ ca_certificates_update_trust_cert }}"

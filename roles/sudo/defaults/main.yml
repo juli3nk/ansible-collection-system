@@ -1,0 +1,22 @@
+---
+sudo_visudo_path: /usr/sbin/visudo
+
+sudo_manage_cloud_init_rule: true
+sudo_cloud_init_rule_path: /etc/sudoers.d/90-cloud-init-users
+
+# Automation account used by Ansible/cloud-init; checked before removing cloud-init sudoers.
+sudo_automation_user: "{{ ansible_user | default('') }}"
+sudo_manage_automation_user_rule: true
+sudo_cleanup_automation_user_rule: false
+sudo_automation_user_rule_path: /etc/sudoers.d/automation
+sudo_automation_user_nopasswd: true
+sudo_require_automation_user_in_admin_group: true
+
+sudo_manage_admin_group_rule: true
+sudo_admin_group_name: 'admin'
+sudo_admin_group_rule_path: /etc/sudoers.d/admin
+sudo_admin_group_nopasswd: true
+
+# Set value (e.g. 60) to manage sudo timeout; null disables.
+sudo_timestamp_timeout: null
+sudo_timeout_rule_path: /etc/sudoers.d/timeout

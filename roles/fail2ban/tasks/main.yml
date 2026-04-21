@@ -1,0 +1,25 @@
+---
+- name: Ensure fail2ban package state matches fail2ban_enabled
+  become: true
+  ansible.builtin.package:
+    name: "{{ fail2ban_package }}"
+    state: "{{ 'present' if fail2ban_enabled else 'absent' }}"
+
+- name: Ensure fail2ban local configuration is present
+  become: true
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: "{{ fail2ban_config_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart fail2ban
+  when: fail2ban_enabled
+
+- name: Ensure fail2ban service is enabled and running
+  become: true
+  ansible.builtin.service:
+    name: "{{ fail2ban_service }}"
+    enabled: true
+    state: started
+  when: fail2ban_enabled

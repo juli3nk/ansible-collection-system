@@ -1,0 +1,38 @@
+---
+time_tzdata_package: 'tzdata'
+time_timezone: 'Etc/UTC'
+
+# Chrony
+time_ntp_enabled: true
+
+time_ntp_package: 'chrony'
+time_ntp_service: 'chrony'
+
+time_ntp_manage_config: false
+time_ntp_config_file: '/etc/chrony/chrony.conf'
+
+time_ntp_tinker_panic: false
+
+# Systemd-timesyncd
+time_timesyncd_package: 'systemd-timesyncd'
+time_timesyncd_service: 'systemd-timesyncd'
+
+time_timesyncd_connection_retry: 30
+time_timesyncd_poll_interval_max: 2048
+time_timesyncd_poll_interval_min: 32
+time_timesyncd_root_distance_max: 5
+
+# NTP server area configuration (leave empty for 'Worldwide').
+# See: http://support.ntp.org/bin/view/Servers/NTPPoolServers
+time_ntp_area: ''
+time_ntp_servers:
+  - "0{{ '.' + time_ntp_area if time_ntp_area else '' }}.pool.ntp.org iburst"
+  - "1{{ '.' + time_ntp_area if time_ntp_area else '' }}.pool.ntp.org iburst"
+  - "2{{ '.' + time_ntp_area if time_ntp_area else '' }}.pool.ntp.org iburst"
+  - "3{{ '.' + time_ntp_area if time_ntp_area else '' }}.pool.ntp.org iburst"
+time_ntp_fallback_server: 'ntp.ubuntu.com iburst'
+
+# Legacy NTP packages to remove when Chrony is enabled.
+time_ntp_legacy_packages:
+  - ntp
+  - ntpsec

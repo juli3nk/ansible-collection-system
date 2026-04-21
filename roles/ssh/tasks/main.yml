@@ -1,0 +1,97 @@
+---
+- name: Ensure SSH daemon is enabled and running
+  ansible.builtin.service:
+    name: "{{ ssh_sshd_name }}"
+    enabled: true
+    state: "{{ ssh_sshd_state }}"
+
+- name: Update SSH server configuration
+  ansible.builtin.lineinfile:
+    dest: "{{ ssh_sshd_config_path }}"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+    validate: 'sshd -T -f %s'
+    mode: '0644'
+  loop:
+    - regexp: "^ChallengeResponseAuthentication"
+      line: "ChallengeResponseAuthentication {{ ssh_sshd_challenge_response_auth }}"
+    - regexp: "^KbdInteractiveAuthentication"
+      line: "KbdInteractiveAuthentication {{ ssh_sshd_kbd_interactive_authentication }}"
+    - regexp: "^GSSAPIAuthentication"
+      line: "GSSAPIAuthentication {{ ssh_sshd_gss_api_authentication }}"
+    - regexp: "^LoginGraceTime"
+      line: "LoginGraceTime {{ ssh_sshd_login_grace_time }}"
+    - regexp: "^MaxSessions"
+      line: "MaxSessions {{ ssh_sshd_max_sessions }}"
+    - regexp: "^MaxAuthTries"
+      line: "MaxAuthTries {{ ssh_sshd_max_auth_tries }}"
+    - regexp: "^MaxStartups"
+      line: "MaxStartups {{ ssh_sshd_max_startups }}"
+    - regexp: "^PasswordAuthentication"
+      line: "PasswordAuthentication {{ ssh_sshd_password_authentication }}"
+    - regexp: "^PermitEmptyPasswords"
+      line: "PermitEmptyPasswords {{ ssh_sshd_permit_empty_password }}"
+    - regexp: "^PermitRootLogin"
+      line: "PermitRootLogin {{ ssh_sshd_permit_root_login }}"
+    - regexp: "^PermitUserEnvironment"
+      line: "PermitUserEnvironment {{ ssh_sshd_permit_user_environment }}"
+    - regexp: "^AllowAgentForwarding"
+      line: "AllowAgentForwarding {{ ssh_sshd_allow_agent_forwarding }}"
+    - regexp: "^AllowTcpForwarding"
+      line: "AllowTcpForwarding {{ ssh_sshd_allow_tcp_forwarding }}"
+    - regexp: "^PermitTunnel"
+      line: "PermitTunnel {{ ssh_sshd_permit_tunnel }}"
+    - regexp: "^ClientAliveInterval"
+      line: "ClientAliveInterval {{ ssh_sshd_client_alive_interval }}"
+    - regexp: "^ClientAliveCountMax"
+      line: "ClientAliveCountMax {{ ssh_sshd_client_alive_count_max }}"
+    - regexp: "^Port"
+      line: "Port {{ ssh_sshd_port }}"
+    - regexp: "^PrintLastLog"
+      line: "PrintLastLog {{ ssh_sshd_print_last_log }}"
+    - regexp: "^PrintMotd"
+      line: "PrintMotd {{ ssh_sshd_print_motd }}"
+    - regexp: "^PubkeyAuthentication"
+      line: "PubkeyAuthentication {{ ssh_sshd_public_key_authentication }}"
+    - regexp: "^Ciphers"
+      line: "Ciphers {{ ssh_sshd_ciphers | join(',') }}"
+    - regexp: "^KexAlgorithms"
+      line: "KexAlgorithms {{ ssh_sshd_kex_algorithms | join(',') }}"
+    - regexp: "^MACs"
+      line: "MACs {{ ssh_sshd_macs | join(',') }}"
+    - regexp: "^UseDNS"
+      line: "UseDNS {{ ssh_sshd_usedns }}"
+    - regexp: "^X11Forwarding"
+      line: "X11Forwarding {{ ssh_sshd_x11_forwarding }}"
+  notify: Restart ssh
+
+- name: Build list of SSH-allowed users
+  ansible.builtin.set_fact:
+    ssh_enabled_users: >-
+      {{
+        (
+          ssh_sshd_allow_users
+          if (ssh_sshd_allow_users | length > 0)
+          else (
+            identity_users | default([])
+            | selectattr('ssh', 'equalto', true)
+            | map(attribute='name')
+            | list
+          )
+        )
+      }}
+
+- name: Add configured users allowed to connect over ssh
+  ansible.builtin.lineinfile:
+    dest: "{{ ssh_sshd_config_path }}"
+    regexp: '^AllowUsers'
+    line: "AllowUsers {{ ssh_enabled_users | join(' ') }}"
+    state: present
+    create: true
+    validate: 'sshd -T -f %s'
+    mode: '0644'
+  when:
+    - ssh_sshd_allow_users_manage | bool
+    - ssh_enabled_users | length > 0
+  notify: Restart ssh

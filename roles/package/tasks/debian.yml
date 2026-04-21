@@ -1,0 +1,71 @@
+---
+- name: Create directory for APT keyrings
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install default packages
+  become: true
+  ansible.builtin.apt:
+    pkg:
+      # Editors
+      - vim
+      # Version control
+      - git
+      - git-lfs
+      # Network tools
+      - curl
+      - wget
+      - netcat-openbsd
+      - dnsutils
+      - iproute2
+      - iputils-ping
+      - traceroute
+      - tcpdump
+      - nmap
+      - socat
+      - telnet
+      # Debugging tools
+      - strace
+      - lsof
+      - gdb
+      - bmon
+      - btop
+      - htop
+      - iotop
+      - iftop
+      - sysstat
+      - procps
+      - psmisc
+      # System utilities
+      - apt-transport-https
+      - tmux
+      - tree
+      - jq
+      - bzip2
+      - unzip
+      - rsync
+      - less
+      - file
+      - lsb-release
+    state: present
+    update_cache: true
+
+- name: Ensure additional packages are installed
+  become: true
+  become_user: root
+  ansible.builtin.apt:
+    pkg: "{{ package_additional }}"
+    state: present
+  when: package_additional | length > 0
+
+- name: Uninstall packages
+  become: true
+  become_user: root
+  ansible.builtin.apt:
+    pkg: "{{ package_remove }}"
+    state: absent
+  when: package_remove | length > 0
