@@ -1,0 +1,5 @@
+---
+- name: Reload apparmor
+  become: true
+  ansible.builtin.command: apparmor_parser -r /etc/apparmor.d/
+  changed_when: false

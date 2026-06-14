@@ -1,0 +1,4 @@
+---
+motd_enabled: true
+motd_file: /etc/motd
+motd_message: "Unauthorized access prohibited."

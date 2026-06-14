@@ -1,0 +1,20 @@
+---
+- name: Manage MOTD
+  when: ansible_facts['os_family'] == 'Debian'
+  block:
+    - name: Ensure MOTD file is present
+      become: true
+      ansible.builtin.template:
+        src: motd.j2
+        dest: "{{ motd_file }}"
+        owner: root
+        group: root
+        mode: '0644'
+      when: motd_enabled | bool
+
+    - name: Ensure MOTD file is absent when disabled
+      become: true
+      ansible.builtin.file:
+        path: "{{ motd_file }}"
+        state: absent
+      when: not (motd_enabled | bool)

@@ -1,0 +1,10 @@
+{{ ansible_managed | comment }}
+
+passwd:     {{ nss_passwd }}
+group:      {{ nss_group }}
+shadow:     {{ nss_shadow }}
+hosts:      {{ nss_hosts }}
+networks:   {{ nss_networks }}
+protocols:  {{ nss_protocols }}
+services:   {{ nss_services }}
+netgroup:   {{ nss_netgroup }}

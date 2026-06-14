@@ -1,0 +1,6 @@
+---
+apparmor_enabled: true
+apparmor_packages:
+  - apparmor
+  - apparmor-utils
+apparmor_service: apparmor

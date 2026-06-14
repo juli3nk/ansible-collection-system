@@ -1,0 +1,17 @@
+---
+- name: Manage AppArmor
+  when: ansible_facts['os_family'] == 'Debian'
+  block:
+    - name: Ensure AppArmor packages state matches apparmor_enabled
+      become: true
+      ansible.builtin.apt:
+        name: "{{ apparmor_packages }}"
+        state: "{{ 'present' if apparmor_enabled else 'absent' }}"
+
+    - name: Ensure AppArmor service is enabled and running
+      become: true
+      ansible.builtin.service:
+        name: "{{ apparmor_service }}"
+        enabled: true
+        state: started
+      when: apparmor_enabled | bool

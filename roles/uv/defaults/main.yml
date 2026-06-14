@@ -1,0 +1,18 @@
+---
+# Users that should have uv installed under ~/.local/bin/uv
+uv_users: []
+
+uv_install_script_url: 'https://astral.sh/uv/install.sh'
+uv_binary_relative_path: '.local/bin/uv'
+
+# Set to true to remove and reinstall uv on each managed user.
+uv_force_install: false
+
+# Validated by package role; this role does not install them.
+uv_prerequisite_packages:
+  - ca-certificates
+  - curl
+
+# When set, publishes host fact uv_cmd for downstream roles (e.g. hermes).
+# If empty and uv_users has exactly one entry, that user is used automatically.
+uv_cmd_user: ''

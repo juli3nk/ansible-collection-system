@@ -19,23 +19,33 @@ tags:
   - system
   - management
   - debian
+  - apparmor
+  - auditd
   - ca_certificates
   - disk
   - dns
   - fail2ban
   - fstab
   - hostname
+  - hosts
   - identity
+  - kernel_modules
   - logging
+  - motd
   - nftables
+  - node_exporter
   - nodejs
+  - nss
   - package
+  - pam
+  - rngd
   - shell
   - ssh
   - sudo
   - sysctl
   - time
   - unattended-upgrades
+  - uv
 
 dependencies: {}
 

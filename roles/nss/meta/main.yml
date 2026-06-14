@@ -1,0 +1,18 @@
+galaxy_info:
+  author: Julien K.
+  description: manage /etc/nsswitch.conf
+
+  license: MIT
+
+  min_ansible_version: 2.1
+
+  platforms:
+    - name: Debian
+      versions:
+        - all
+
+  galaxy_tags:
+    - nss
+    - system
+
+dependencies: []

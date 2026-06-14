@@ -1,0 +1,11 @@
+---
+auditd_enabled: true
+auditd_package: auditd
+auditd_service: auditd
+auditd_config_file: /etc/audit/auditd.conf
+auditd_rules_file: /etc/audit/rules.d/ansible.rules
+
+auditd_max_log_file: 8
+auditd_max_log_file_action: rotate
+auditd_space_left: 75
+auditd_admin_space_left: 50

@@ -1,0 +1,4 @@
+{{ ansible_managed | comment }}
+{% for module in kernel_modules %}
+{{ module }}
+{% endfor %}

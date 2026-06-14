@@ -1,0 +1,4 @@
+---
+kernel_modules_enabled: true
+kernel_modules_load_file: /etc/modules-load.d/ansible.conf
+kernel_modules: []

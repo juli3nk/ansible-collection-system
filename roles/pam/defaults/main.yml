@@ -1,0 +1,13 @@
+---
+pam_enabled: true
+pam_pwquality_package: libpam-pwquality
+pam_pwquality_config_file: /etc/security/pwquality.conf
+
+pam_minlen: 12
+pam_minclass: 3
+pam_maxrepeat: 3
+pam_maxsequence: 3
+pam_ucredit: -1
+pam_lcredit: -1
+pam_dcredit: -1
+pam_ocredit: -1

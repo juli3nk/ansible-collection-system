@@ -1,0 +1,33 @@
+---
+- name: Manage kernel modules
+  when: ansible_facts['os_family'] == 'Debian'
+  block:
+    - name: Ensure modules-load configuration is present
+      become: true
+      ansible.builtin.template:
+        src: modules-load.conf.j2
+        dest: "{{ kernel_modules_load_file }}"
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - kernel_modules_enabled | bool
+        - kernel_modules | length > 0
+      notify: Reload kernel modules
+
+    - name: Ensure modules-load configuration is absent when disabled
+      become: true
+      ansible.builtin.file:
+        path: "{{ kernel_modules_load_file }}"
+        state: absent
+      when: not (kernel_modules_enabled | bool)
+
+    - name: Load kernel modules now
+      become: true
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ kernel_modules }}"
+      when:
+        - kernel_modules_enabled | bool
+        - kernel_modules | length > 0
