@@ -14,6 +14,13 @@
 - name: Configure DNS with systemd-resolved
   when: dns_mode == 'resolved'
   block:
+    - name: Ensure systemd-resolved package is present
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+        name: "systemd-resolved"
+        state: present
+
     - name: Ensure systemd-resolved configuration is present
       become: true
       ansible.builtin.template:
