@@ -23,6 +23,7 @@ identity_users: []
 #   shell: /bin/bash
 #   authorized:
 #     - gitrepo_username: 'testuser'
+#   linger: true
 
 identity_admin_group_name: 'admin'
 identity_manage_admin_group: true

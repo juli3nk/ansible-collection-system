@@ -112,3 +112,31 @@
         name: "{{ outer_item.name }}"
         groups: "{{ identity_admin_group_name }}"
         append: true
+
+- name: Enable lingering for user (allows systemd user services without login)
+  when:
+    - outer_item.create | default(false) | bool
+    - outer_item.linger | default(false) | bool
+  block:
+    - name: Check if lingering is enabled
+      ansible.builtin.command: "loginctl show-user {{ outer_item.name }} -p Linger"
+      register: lingering_check
+      changed_when: false
+      failed_when: false
+
+    - name: Enable lingering if not enabled
+      ansible.builtin.command: "loginctl enable-linger {{ outer_item.name }}"
+      changed_when: false
+      when:
+        - lingering_check.stdout != 'Linger=yes'
+
+    - name: Disable lingering if enabled
+      ansible.builtin.command: "loginctl disable-linger {{ outer_item.name }}"
+      changed_when: false
+      when:
+        - lingering_check.stdout == 'Linger=yes'
+        - not outer_item.linger | default(false) | bool
+
+    - name: Display lingering status
+      ansible.builtin.debug:
+        msg: "Lingering is {{ lingering_check.stdout }}"
