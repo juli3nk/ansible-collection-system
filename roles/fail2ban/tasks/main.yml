@@ -1,4 +1,13 @@
 ---
+- name: Ensure fail2ban service is stopped and disabled
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ fail2ban_service }}"
+    enabled: false
+    state: stopped
+  when: not fail2ban_enabled
+  ignore_errors: true
+
 - name: Ensure fail2ban package state matches fail2ban_enabled
   become: true
   ansible.builtin.package:

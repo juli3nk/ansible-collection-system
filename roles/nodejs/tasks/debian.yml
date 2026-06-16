@@ -38,11 +38,6 @@
         state: present
       register: nodejs_apt_repository_result
 
-    - name: Refresh APT cache after repository changes
-      ansible.builtin.apt:
-        update_cache: true
-      when: nodejs_apt_repository_result.changed
-
     - name: Pin Node.js package origin to NodeSource
       ansible.builtin.copy:
         dest: "{{ nodejs_apt_pin_file }}"
@@ -59,46 +54,14 @@
       ansible.builtin.apt:
         name: nodejs
         state: present
+        update_cache: "{{ nodejs_apt_repository_result is changed }}"
 
 - name: Ensure optional Node.js build tools are installed
   become: true
   ansible.builtin.apt:
     name:
       - build-essential
-      - make
-      - g++
       - python3
       - cmake
     state: present
   when: nodejs_setup_build_tools | bool
-
-- name: Ensure pnpm is installed globally
-  become: true
-  block:
-    - name: Check if pnpm is already installed
-      ansible.builtin.command: pnpm --version
-      register: pnpm_check
-      failed_when: false
-      changed_when: false
-
-    - name: Install pnpm globally
-      ansible.builtin.command: npm install -g pnpm
-      when: pnpm_check.rc != 0
-
-- name: Verify Node.js and pnpm installation
-  block:
-    - name: Verify Node.js installation
-      ansible.builtin.command: node --version
-      register: node_version
-      changed_when: false
-
-    - name: Verify pnpm installation
-      ansible.builtin.command: pnpm --version
-      register: pnpm_version
-      changed_when: false
-
-    - name: Display Node.js and pnpm versions
-      ansible.builtin.debug:
-        msg:
-          - "Node.js version: {{ node_version.stdout }}"
-          - "pnpm version: {{ pnpm_version.stdout }}"

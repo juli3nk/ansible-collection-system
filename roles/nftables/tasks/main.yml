@@ -1,9 +1,10 @@
 ---
-- name: Ensure nftables packages are installed
+- name: Ensure nftables service is enabled and running
   become: true
-  ansible.builtin.package:
-    name: "{{ [nftables_package] + ([nftables_iptables_package] if nftables_install_iptables_compat else []) }}"
-    state: present
+  ansible.builtin.systemd:
+    name: "{{ nftables_service }}"
+    enabled: "{{ nftables_enabled | bool }}"
+    state: "{{ 'started' if nftables_enabled | bool else 'stopped' }}"
 
 - name: Ensure nftables configuration is present
   become: true
@@ -12,12 +13,19 @@
     dest: "{{ nftables_config_file }}"
     owner: root
     group: root
-    mode: "0644"
+    mode: '0644'
   notify: Restart nftables
+  when: nftables_enabled | bool
 
-- name: Ensure nftables service is enabled and running
+- name: Ensure nftables configuration is absent
   become: true
-  ansible.builtin.service:
-    name: "{{ nftables_service }}"
-    enabled: "{{ nftables_enabled }}"
-    state: "{{ 'started' if nftables_enabled else 'stopped' }}"
+  ansible.builtin.file:
+    path: "{{ nftables_config_file }}"
+    state: absent
+  when: not nftables_enabled | bool
+
+- name: Ensure nftables packages are installed
+  become: true
+  ansible.builtin.package:
+    pkg: "{{ [nftables_package] + ([nftables_iptables_package] if nftables_install_iptables_compat else []) }}"
+    state: "{{ 'present' if nftables_enabled | bool else 'absent' }}"

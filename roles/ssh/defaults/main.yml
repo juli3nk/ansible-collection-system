@@ -2,7 +2,6 @@
 ssh_sshd_name: 'sshd'
 ssh_sshd_config_path: '/etc/ssh/sshd_config'
 ssh_sshd_state: 'started'
-ssh_sshd_restart_handler_state: 'restarted'
 
 ssh_sshd_challenge_response_auth: 'no'
 ssh_sshd_kbd_interactive_authentication: 'no'

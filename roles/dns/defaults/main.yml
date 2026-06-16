@@ -1,4 +1,6 @@
 ---
+dns_enabled: true
+
 # DNS resolver mode:
 # - dhcp: keep DNS managed by DHCP/network stack
 # - resolved: manage DNS with systemd-resolved

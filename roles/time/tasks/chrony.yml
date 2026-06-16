@@ -1,0 +1,32 @@
+---
+- name: Ensure Chrony service is stopped
+  when: time_backend != 'chrony'
+  ansible.builtin.systemd:
+    name: "{{ time_chrony_service }}"
+    enabled: false
+    state: stopped
+    ignore_errors: true
+
+- name: Ensure Chrony package is present
+  ansible.builtin.package:
+    name: "{{ time_chrony_package }}"
+    state: "{{ 'present' if time_backend == 'chrony' else 'absent' }}"
+
+- name: Manage Chrony configuration
+  become: true
+  when: time_backend == 'chrony'
+  block:
+    - name: Ensure Chrony is running and enabled as configured
+      ansible.builtin.service:
+        name: "{{ time_chrony_service }}"
+        state: started
+        enabled: true
+      ignore_errors: "{{ ansible_check_mode }}"
+
+    - name: Generate Chrony configuration file
+      ansible.builtin.template:
+        src: "{{ time_chrony_config_file | basename }}.j2"
+        dest: "{{ time_chrony_config_file }}"
+        mode: '0644'
+      notify: Restart chrony
+      when: time_chrony_manage_config | bool

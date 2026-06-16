@@ -1,12 +1,14 @@
 ---
 - name: Restart chrony
-  ansible.builtin.service:
-    name: "{{ time_ntp_service }}"
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ time_chrony_service }}"
     state: restarted
-  when: time_ntp_enabled | bool
+  when: time_chrony_enabled | bool
 
 - name: Restart timesyncd
-  ansible.builtin.service:
+  become: true
+  ansible.builtin.systemd:
     name: "{{ time_timesyncd_service }}"
     state: restarted
-  when: not time_ntp_enabled | bool
+  when: not time_chrony_enabled | bool

@@ -1,17 +1,19 @@
 ---
-- name: Manage AppArmor
-  when: ansible_facts['os_family'] == 'Debian'
-  block:
-    - name: Ensure AppArmor packages state matches apparmor_enabled
-      become: true
-      ansible.builtin.apt:
-        name: "{{ apparmor_packages }}"
-        state: "{{ 'present' if apparmor_enabled else 'absent' }}"
+- name: Check supported OS family
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] | lower == 'debian'
+    fail_msg: 'apparmor role currently supports only Debian family hosts.'
 
-    - name: Ensure AppArmor service is enabled and running
-      become: true
-      ansible.builtin.service:
-        name: "{{ apparmor_service }}"
-        enabled: true
-        state: started
-      when: apparmor_enabled | bool
+- name: Ensure AppArmor packages state matches apparmor_enabled
+  become: true
+  ansible.builtin.apt:
+    name: "{{ apparmor_packages }}"
+    state: "{{ 'present' if apparmor_enabled | bool else 'absent' }}"
+
+- name: Ensure AppArmor service is enabled and running
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ apparmor_service }}"
+    enabled: "{{ apparmor_enabled | bool }}"
+    state: "{{ 'started' if apparmor_enabled | bool else 'stopped' }}"

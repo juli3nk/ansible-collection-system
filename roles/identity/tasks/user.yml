@@ -47,9 +47,11 @@
   when: outer_item.create
 
 - name: Force password change on first login
-  ansible.builtin.command: "chage -d 0 {{ outer_item.name }}"
+  ansible.builtin.command:
+    cmd: "chage -d 0 {{ outer_item.name }}"
   changed_when: false
   when:
+    - outer_item.create | default(false) | bool
     - (outer_item.password_force_change | default(false) | bool)
       or (outer_item.password_from_username | default(false) | bool)
 
@@ -62,10 +64,12 @@
       ansible.builtin.getent:
         database: 'passwd'
         key: "{{ outer_item.name }}"
+
     - name: Does ssh directory exists
       ansible.builtin.stat:
         path: "{{ ansible_facts.getent_passwd[outer_item.name][4] }}/.ssh"
       register: results
+
     - name: Create ssh directory
       ansible.builtin.file:
         path: "{{ ansible_facts.getent_passwd[outer_item.name][4] }}/.ssh"
@@ -94,7 +98,8 @@
     - outer_item.admin
   block:
     - name: Check admin group exists
-      ansible.builtin.command: "getent group {{ identity_admin_group_name }}"
+      ansible.builtin.command:
+        cmd: "getent group {{ identity_admin_group_name }}"
       register: identity_admin_group_check
       changed_when: false
       failed_when: false
@@ -113,29 +118,32 @@
         groups: "{{ identity_admin_group_name }}"
         append: true
 
-- name: Enable lingering for user (allows systemd user services without login)
+- name: Manage lingering for user
   when:
     - outer_item.create | default(false) | bool
-    - outer_item.linger | default(false) | bool
   block:
     - name: Check if lingering is enabled
-      ansible.builtin.command: "loginctl show-user {{ outer_item.name }} -p Linger"
+      ansible.builtin.command:
+        cmd: "loginctl show-user {{ outer_item.name }} -p Linger"
       register: lingering_check
       changed_when: false
       failed_when: false
 
-    - name: Enable lingering if not enabled
-      ansible.builtin.command: "loginctl enable-linger {{ outer_item.name }}"
-      changed_when: false
+    - name: Enable lingering
+      ansible.builtin.command:
+        cmd: "loginctl enable-linger {{ outer_item.name }}"
+      changed_when: true
       when:
+        - outer_item.linger | default(false) | bool
         - lingering_check.stdout != 'Linger=yes'
 
-    - name: Disable lingering if enabled
-      ansible.builtin.command: "loginctl disable-linger {{ outer_item.name }}"
-      changed_when: false
+    - name: Disable lingering
+      ansible.builtin.command:
+        cmd: "loginctl disable-linger {{ outer_item.name }}"
+      changed_when: true
       when:
-        - lingering_check.stdout == 'Linger=yes'
         - not outer_item.linger | default(false) | bool
+        - lingering_check.stdout == 'Linger=yes'
 
     - name: Display lingering status
       ansible.builtin.debug:

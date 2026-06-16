@@ -1,5 +1,0 @@
----
-- name: Reload kernel modules
-  become: true
-  ansible.builtin.command: systemd-modules-load
-  changed_when: false

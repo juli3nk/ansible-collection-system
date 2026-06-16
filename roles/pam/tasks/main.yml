@@ -1,19 +1,16 @@
 ---
-- name: Manage PAM password quality
-  when: ansible_facts['os_family'] == 'Debian'
-  block:
-    - name: Ensure PAM pwquality package state matches pam_enabled
-      become: true
-      ansible.builtin.apt:
-        name: "{{ pam_pwquality_package }}"
-        state: "{{ 'present' if pam_enabled else 'absent' }}"
+- name: Ensure PAM pwquality package state matches pam_enabled
+  become: true
+  ansible.builtin.apt:
+    name: "{{ pam_pwquality_package }}"
+    state: "{{ 'present' if pam_enabled else 'absent' }}"
 
-    - name: Ensure PAM pwquality configuration is present
-      become: true
-      ansible.builtin.template:
-        src: pwquality.conf.j2
-        dest: "{{ pam_pwquality_config_file }}"
-        owner: root
-        group: root
-        mode: '0644'
-      when: pam_enabled | bool
+- name: Ensure PAM pwquality configuration is present
+  become: true
+  ansible.builtin.template:
+    src: pwquality.conf.j2
+    dest: "{{ pam_pwquality_config_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: pam_enabled | bool

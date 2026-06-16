@@ -1,5 +1,6 @@
 ---
 - name: Create directory for APT keyrings
+  become: true
   ansible.builtin.file:
     path: /etc/apt/keyrings
     state: directory
@@ -56,7 +57,6 @@
 
 - name: Ensure additional packages are installed
   become: true
-  become_user: root
   ansible.builtin.apt:
     pkg: "{{ package_additional }}"
     state: present
@@ -64,7 +64,6 @@
 
 - name: Uninstall packages
   become: true
-  become_user: root
   ansible.builtin.apt:
     pkg: "{{ package_remove }}"
     state: absent

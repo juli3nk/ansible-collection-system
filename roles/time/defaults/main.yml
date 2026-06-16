@@ -3,15 +3,15 @@ time_tzdata_package: 'tzdata'
 time_timezone: 'Etc/UTC'
 
 # Chrony
-time_ntp_enabled: true
+time_backend: 'chrony'
 
-time_ntp_package: 'chrony'
-time_ntp_service: 'chrony'
+time_chrony_package: 'chrony'
+time_chrony_service: 'chrony'
 
-time_ntp_manage_config: false
-time_ntp_config_file: '/etc/chrony/chrony.conf'
+time_chrony_manage_config: false
+time_chrony_config_file: '/etc/chrony/chrony.conf'
 
-time_ntp_tinker_panic: false
+time_chrony_tinker_panic: false
 
 # Systemd-timesyncd
 time_timesyncd_package: 'systemd-timesyncd'

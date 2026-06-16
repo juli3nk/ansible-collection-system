@@ -41,7 +41,7 @@
     regexp: "^{{ hostname_hosts_ip | regex_escape }}\\s+"
     line: "{{ hostname_hosts_ip }} {{ hostname_hosts_entries | join(' ') }}"
     state: present
-    mode: "0644"
+    mode: '0644'
   when: hostname_manage_etc_hosts | bool
 
 - name: Ensure extra entries exist in /etc/hosts
@@ -51,6 +51,6 @@
     regexp: "^{{ item.ip | regex_escape }}\\s+"
     line: "{{ item.ip }} {{ item.names | unique | join(' ') }}"
     state: present
-    mode: "0644"
+    mode: '0644'
   loop: "{{ hostname_hosts_extra_entries }}"
   when: hostname_manage_etc_hosts | bool

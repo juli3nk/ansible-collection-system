@@ -1,11 +1,6 @@
 ---
-- name: Ensure SSH daemon is enabled and running
-  ansible.builtin.service:
-    name: "{{ ssh_sshd_name }}"
-    enabled: true
-    state: "{{ ssh_sshd_state }}"
-
 - name: Update SSH server configuration
+  become: true
   ansible.builtin.lineinfile:
     dest: "{{ ssh_sshd_config_path }}"
     regexp: "{{ item.regexp }}"
@@ -64,7 +59,7 @@
       line: "UseDNS {{ ssh_sshd_usedns }}"
     - regexp: "^X11Forwarding"
       line: "X11Forwarding {{ ssh_sshd_x11_forwarding }}"
-  notify: Restart ssh
+  notify: Reload ssh
 
 - name: Build list of SSH-allowed users
   ansible.builtin.set_fact:
@@ -94,4 +89,17 @@
   when:
     - ssh_sshd_allow_users_manage | bool
     - ssh_enabled_users | length > 0
-  notify: Restart ssh
+  notify: Reload ssh
+
+- name: Fail if AllowUsers management enabled but no users defined
+  ansible.builtin.fail:
+    msg: "ssh_sshd_allow_users_manage is true but no users are defined"
+  when:
+    - ssh_sshd_allow_users_manage | bool
+    - ssh_enabled_users | length == 0
+
+- name: Ensure SSH daemon is enabled and running
+  ansible.builtin.service:
+    name: "{{ ssh_sshd_name }}"
+    enabled: true
+    state: "{{ ssh_sshd_state }}"

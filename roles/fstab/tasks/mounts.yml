@@ -1,20 +1,6 @@
 ---
-- name: Ensure mountpoint folder exists
-  block:
-    - name: Does mountpoint exists
-      ansible.builtin.stat:
-        path: "{{ outer_item.path }}"
-      register: results
-    - name: Create mountpoint directory
-      ansible.builtin.file:
-        path: "{{ outer_item.path }}"
-        state: 'directory'
-        owner: 'root'
-        group: 'root'
-        mode: '0755'
-      when: not results.stat.exists
-
-- name: Ensure filesystem are mounted
+- name: Ensure filesystem is mounted
+  become: true
   ansible.posix.mount:
     path: "{{ outer_item.path }}"
     src: "{{ outer_item.src }}"

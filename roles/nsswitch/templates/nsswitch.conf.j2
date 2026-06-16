@@ -1,0 +1,7 @@
+{# templates/nsswitch.conf.j2 #}
+# /etc/nsswitch.conf
+{{ ansible_managed | comment }}
+
+{% for database, sources in nsswitch_config.items() %}
+{{ database }}:{{ ' ' * (16 - database | length) }}{{ sources }}
+{% endfor %}

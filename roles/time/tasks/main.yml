@@ -1,13 +1,14 @@
 ---
-- name: Populate service facts
-  ansible.builtin.service_facts:
+- name: Set time backend
+  ansible.builtin.assert:
+    that:
+      - time_backend in ['chrony', 'systemd-timesyncd']
+    fail_msg: "Invalid time backend: {{ time_backend }}"
 
 - name: Ensure tzdata package is installed
   ansible.builtin.package:
     name: "{{ time_tzdata_package }}"
     state: present
-  when:
-    - (ansible_facts['os_family'] | lower) == 'debian'
 
 - name: Set timezone
   community.general.timezone:
@@ -20,9 +21,7 @@
   loop: "{{ time_ntp_legacy_packages }}"
 
 - name: Ensure chrony is configured
-  ansible.builtin.include_tasks: ntp.yml
-  when: time_ntp_enabled
+  ansible.builtin.include_tasks: chrony.yml
 
 - name: Ensure systemd-timesyncd is configured
   ansible.builtin.include_tasks: systemd-timesync.yml
-  when: not time_ntp_enabled

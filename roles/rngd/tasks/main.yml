@@ -1,17 +1,14 @@
 ---
-- name: Manage entropy daemon
-  when: ansible_facts['os_family'] == 'Debian'
-  block:
-    - name: Ensure entropy daemon package state matches rngd_enabled
-      become: true
-      ansible.builtin.apt:
-        name: "{{ rngd_package }}"
-        state: "{{ 'present' if rngd_enabled else 'absent' }}"
+- name: Ensure entropy daemon package state matches rngd_enabled
+  become: true
+  ansible.builtin.package:
+    pkg: "{{ rngd_package }}"
+    state: "{{ 'present' if rngd_enabled | bool else 'absent' }}"
 
-    - name: Ensure entropy daemon service is enabled and running
-      become: true
-      ansible.builtin.service:
-        name: "{{ rngd_service }}"
-        enabled: true
-        state: started
-      when: rngd_enabled | bool
+- name: Ensure entropy daemon service is enabled and running
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ rngd_service }}"
+    enabled: "{{ rngd_enabled | bool }}"
+    state: "{{ 'started' if rngd_enabled | bool else 'stopped' }}"
+  when: rngd_enabled | bool

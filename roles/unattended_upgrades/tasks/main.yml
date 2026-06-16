@@ -3,7 +3,7 @@
   ansible.builtin.assert:
     that:
       - ansible_facts['os_family'] | lower == 'debian'
-    fail_msg: "unattended-upgrades role currently supports only Debian family hosts."
+    fail_msg: 'unattended-upgrades role currently supports only Debian family hosts.'
 
 - name: Ensure unattended-upgrades package state matches unattended_upgrades_enabled
   become: true

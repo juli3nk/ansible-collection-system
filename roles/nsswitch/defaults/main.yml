@@ -1,0 +1,21 @@
+---
+# NSS configuration
+nsswitch_enabled: true
+nsswitch_package: nscd
+nsswitch_service: nscd
+
+nsswitch_file: /etc/nsswitch.conf
+
+# nsswitch.conf entries
+# Format: database: sources
+nsswitch_config:
+  passwd: "files systemd"
+  group: "files systemd"
+  shadow: "files"
+  hosts: "files dns"
+  networks: "files"
+  protocols: "db files"
+  services: "db files"
+  ethers: "db files"
+  rpc: "files"
+  netgroup: "nis"

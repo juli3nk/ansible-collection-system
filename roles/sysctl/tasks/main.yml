@@ -26,8 +26,7 @@
 
 - name: Reload sysctl configuration
   become: true
-  ansible.builtin.command: sysctl --system
-  changed_when: true
-  when:
-    - sysctl_reload
-    - sysctl_config_result.changed
+  ansible.builtin.command:
+    cmd: sysctl --system
+  changed_when: sysctl_config_result.changed
+  when: sysctl_reload | bool

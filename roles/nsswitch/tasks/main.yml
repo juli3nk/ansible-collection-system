@@ -1,0 +1,79 @@
+---
+- name: Ensure nscd package is present and NSS configured
+  when: nsswitch_enabled | bool
+  block:
+    - name: Ensure nscd package is present
+      become: true
+      ansible.builtin.package:
+        pkg: "{{ nsswitch_package }}"
+        state: present
+
+    - name: Backup original nsswitch.conf if not already done
+      become: true
+      ansible.builtin.copy:
+        src: "{{ nsswitch_file }}"
+        dest: "{{ nsswitch_file }}.orig"
+        remote_src: true
+        force: false
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Ensure nsswitch.conf is present
+      become: true
+      ansible.builtin.template:
+        src: nsswitch.conf.j2
+        dest: "{{ nsswitch_file }}"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: true
+      notify: Restart nscd
+
+    - name: Ensure nscd service is enabled and running
+      become: true
+      ansible.builtin.systemd:
+        name: "{{ nsswitch_service }}"
+        enabled: true
+        state: started
+
+- name: Ensure nscd is disabled and removed
+  when: not nsswitch_enabled | bool
+  block:
+    - name: Ensure nscd service is stopped and disabled
+      become: true
+      ansible.builtin.systemd:
+        name: "{{ nsswitch_service }}"
+        enabled: false
+        state: stopped
+      failed_when: false
+
+    - name: Ensure nscd package is absent
+      become: true
+      ansible.builtin.package:
+        pkg: "{{ nsswitch_package }}"
+        state: absent
+        purge: true
+
+    - name: Check if original nsswitch.conf backup exists
+      ansible.builtin.stat:
+        path: "{{ nsswitch_file }}.orig"
+      register: nsswitch_backup
+
+    - name: Restore original nsswitch.conf if backup exists
+      become: true
+      ansible.builtin.copy:
+        src: "{{ nsswitch_file }}.orig"
+        dest: "{{ nsswitch_file }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      when: nsswitch_backup.stat.exists
+
+    - name: Remove nsswitch.conf backup
+      become: true
+      ansible.builtin.file:
+        path: "{{ nsswitch_file }}.orig"
+        state: absent
+      when: nsswitch_backup.stat.exists

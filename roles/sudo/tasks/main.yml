@@ -25,15 +25,16 @@
   block:
     - name: Ensure admin group exists for sudoers rule
       become: true
-      ansible.builtin.command: "getent group {{ sudo_admin_group_name }}"
+      ansible.builtin.getent:
+        database: group
+        key: "{{ sudo_admin_group_name }}"
+        fail_key: false
       register: sudo_admin_group_check
-      changed_when: false
-      failed_when: false
 
     - name: Assert admin group exists for sudoers rule
       ansible.builtin.assert:
         that:
-          - sudo_admin_group_check.rc == 0
+          - ansible_facts.getent_group[sudo_admin_group_name] is not none
         fail_msg: >-
           Group '{{ sudo_admin_group_name }}' does not exist.
           Create/manage it before enabling sudo admin group rule.
@@ -96,6 +97,7 @@
       cannot run sudo non-interactively yet. Re-run playbook after reconnect.
   when:
     - sudo_manage_cloud_init_rule | bool
+    - sudo_noninteractive_check is defined
     - sudo_noninteractive_check.rc != 0
 
 - name: Remove cloud-init sudoers rule

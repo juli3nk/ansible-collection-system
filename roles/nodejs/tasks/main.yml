@@ -6,4 +6,32 @@
     fail_msg: "nodejs role currently supports only Debian family hosts."
 
 - name: Include OS-specific tasks
-  ansible.builtin.include_tasks: debian.yml
+  ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"
+
+- name: Ensure pnpm is installed globally
+  become: true
+  when: nodejs_install_pnpm | bool
+  community.general.npm:
+    name: pnpm
+    global: true
+    state: present
+
+- name: Verify Node.js and pnpm installation
+  block:
+    - name: Verify Node.js installation
+      ansible.builtin.command: node --version
+      register: node_version
+      changed_when: false
+
+    - name: Verify pnpm installation
+      ansible.builtin.command: pnpm --version
+      register: pnpm_version
+      changed_when: false
+      when: nodejs_install_pnpm | bool
+
+    - name: Display Node.js and pnpm versions
+      ansible.builtin.debug:
+        msg:
+          - "Node.js version: {{ node_version.stdout }}"
+          - "pnpm version: {{ pnpm_version.stdout }}"
+      when: nodejs_install_pnpm | bool

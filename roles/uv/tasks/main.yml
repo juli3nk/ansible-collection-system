@@ -77,6 +77,16 @@
   loop: "{{ uv_user_getent_results.results | selectattr('rc', 'equalto', 0) | list }}"
   loop_control:
     label: "{{ item.item }}"
+- name: Build uv command paths per user
+  ansible.builtin.set_fact:
+    uv_cmd_by_user: >-
+      {{
+        uv_user_getent_results.results
+        | selectattr('rc', 'equalto', 0)
+        | items2dict(key_name='item', value_name='stdout')
+        | dict2items
+        | map('combine', ...)
+      }}
 
 - name: Set uv_cmd fact for downstream roles
   ansible.builtin.set_fact:

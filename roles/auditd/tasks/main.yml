@@ -1,39 +1,46 @@
 ---
-- name: Manage auditd
-  when: ansible_facts['os_family'] == 'Debian'
+- name: Ensure auditd is stopped and disabled before removal
+  become: true
+  when: not auditd_enabled | bool
+  ansible.builtin.systemd:
+    name: "{{ auditd_service }}"
+    enabled: false
+    state: stopped
+  ignore_errors: true
+
+- name: Ensure auditd package state matches auditd_enabled
+  become: true
+  ansible.builtin.apt:
+    name: "{{ auditd_package }}"
+    state: "{{ 'present' if auditd_enabled | bool else 'absent' }}"
+
+- name: Configure and run auditd
+  when: auditd_enabled | bool
   block:
-    - name: Ensure auditd package state matches auditd_enabled
+    - name: Ensure auditd configuration is present
       become: true
-      ansible.builtin.apt:
-        name: "{{ auditd_package }}"
-        state: "{{ 'present' if auditd_enabled else 'absent' }}"
+      ansible.builtin.template:
+        src: auditd.conf.j2
+        dest: "{{ auditd_config_file }}"
+        owner: root
+        group: root
+        mode: '0640'
+      notify: Restart auditd
 
-    - name: Configure and run auditd
-      when: auditd_enabled | bool
-      block:
-        - name: Ensure auditd configuration is present
-          become: true
-          ansible.builtin.template:
-            src: auditd.conf.j2
-            dest: "{{ auditd_config_file }}"
-            owner: root
-            group: root
-            mode: '0640'
-          notify: Restart auditd
+    - name: Ensure auditd rules are present
+      become: true
+      ansible.builtin.template:
+        src: audit.rules.j2
+        dest: "{{ auditd_rules_file }}"
+        owner: root
+        group: root
+        mode: '0640'
+      notify: Restart auditd
 
-        - name: Ensure auditd rules are present
-          become: true
-          ansible.builtin.template:
-            src: audit.rules.j2
-            dest: "{{ auditd_rules_file }}"
-            owner: root
-            group: root
-            mode: '0640'
-          notify: Restart auditd
-
-        - name: Ensure auditd service is enabled and running
-          become: true
-          ansible.builtin.service:
-            name: "{{ auditd_service }}"
-            enabled: true
-            state: started
+- name: Ensure auditd service is enabled and running
+  become: true
+  when: auditd_enabled | bool
+  ansible.builtin.systemd:
+    name: "{{ auditd_service }}"
+    enabled: true
+    state: started
