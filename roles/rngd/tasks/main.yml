@@ -4,6 +4,7 @@
   ansible.builtin.package:
     pkg: "{{ rngd_package }}"
     state: "{{ 'present' if rngd_enabled | bool else 'absent' }}"
+  when: rngd_enabled | bool
 
 - name: Ensure entropy daemon service is enabled and running
   become: true

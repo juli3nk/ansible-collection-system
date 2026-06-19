@@ -6,14 +6,15 @@
       - item.ip | length > 0
       - item.names is defined
       - item.names | length > 0
-    fail_msg: Each hosts_entries item must define ip and non-empty names.
+    fail_msg: 'Each hosts_entries item must define ip and non-empty names.'
   loop: "{{ hosts_entries }}"
+  when: hosts_enabled | bool
 
 - name: Ensure static hosts entries are present
   become: true
   ansible.builtin.lineinfile:
-    path: "{{ hosts_file }}"
-    regexp: '^{{ item.ip | regex_escape }}\s+'
+    path: /etc/hosts
+    regexp: "^{{ item.ip | regex_escape }}\\s+"
     line: "{{ item.ip }} {{ item.names | unique | join(' ') }}"
     state: present
     mode: '0644'

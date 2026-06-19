@@ -1,6 +1,5 @@
 ---
 hosts_enabled: true
-hosts_file: /etc/hosts
 
 # List of entries: { ip: "1.2.3.4", names: ["host", "host.example"] }
 hosts_entries: []
