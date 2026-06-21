@@ -1,0 +1,8 @@
+[NetDev]
+Name={{ item.name }}
+Kind=bridge
+
+[Bridge]
+{% if item.rstp | default(false) | bool %}
+STP=true
+{% endif %}

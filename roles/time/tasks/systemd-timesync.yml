@@ -3,12 +3,26 @@
   ansible.builtin.service_facts:
 
 - name: Ensure systemd-timesyncd service is stopped
+  become: true
   when: time_backend != 'systemd-timesyncd'
-  ansible.builtin.systemd:
-    name: "{{ time_timesyncd_service }}"
-    enabled: false
-    state: stopped
-    ignore_errors: true
+  block:
+    - name: Check systemd-timesyncd unit availability
+      ansible.builtin.command:
+        cmd: "systemctl list-unit-files --full --no-legend {{ time_timesyncd_service }}.service"
+      register: time_timesyncd_unit_check
+      changed_when: false
+      failed_when: false
+
+    - name: Detect available systemd-timesyncd service
+      ansible.builtin.set_fact:
+        time_timesyncd_service_exists: "{{ time_timesyncd_unit_check.stdout | default('') | length > 0 }}"
+
+    - name: Ensure systemd-timesyncd service is stopped
+      ansible.builtin.systemd:
+        name: "{{ time_timesyncd_service }}"
+        enabled: false
+        state: stopped
+      when: time_timesyncd_service_exists
 
 - name: Ensure systemd-timesyncd package is present
   ansible.builtin.package:

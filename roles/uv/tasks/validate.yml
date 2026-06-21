@@ -1,0 +1,44 @@
+---
+- name: Validate uv role configuration
+  ansible.builtin.assert:
+    that:
+      - uv_users | length > 0
+      - uv_install_script_url | length > 0
+    fail_msg: >-
+      uv_users and uv_install_script_url must be set to install uv.
+
+- name: Gather installed package facts
+  become: true
+  ansible.builtin.package_facts:
+    manager: auto
+  when: ansible_facts.os_family == 'Debian'
+
+- name: Assert uv prerequisites are installed by package role
+  ansible.builtin.assert:
+    that:
+      - (uv_prerequisite_packages | difference(ansible_facts.packages.keys() | list)) | length == 0
+    fail_msg: >-
+      Missing prerequisite packages for uv role:
+      {{ uv_prerequisite_packages | difference(ansible_facts.packages.keys() | list) | join(', ') }}.
+      Install them via the package role before running uv.
+  when: ansible_facts.os_family == 'Debian'
+
+- name: Check uv users exist
+  become: true
+  ansible.builtin.command:
+    cmd: "getent passwd {{ item }}"
+  register: uv_user_getent_results
+  changed_when: false
+  failed_when: false
+  loop: "{{ uv_users }}"
+
+- name: Ensure uv users are managed by identity role
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+    fail_msg: >-
+      User '{{ item.item }}' does not exist. Create/manage this user in the
+      identity role before running the uv role.
+  loop: "{{ uv_user_getent_results.results }}"
+  loop_control:
+    label: "{{ item.item }}"

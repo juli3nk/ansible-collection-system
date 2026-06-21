@@ -1,0 +1,23 @@
+---
+- name: Verify uv installation for managed users
+  become: true
+  ansible.builtin.command:
+    argv:
+      - runuser
+      - -u
+      - "{{ item.item }}"
+      - --
+      - "{{ uv_cmd_by_user[item.item] }}"
+      - --version
+  register: uv_version_results
+  changed_when: false
+  loop: "{{ uv_user_getent_results.results | selectattr('rc', 'equalto', 0) | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Display installed uv versions
+  ansible.builtin.debug:
+    msg: "uv for {{ item.item }}: {{ item.stdout | trim }}"
+  loop: "{{ uv_version_results.results }}"
+  loop_control:
+    label: "{{ item.item }}"

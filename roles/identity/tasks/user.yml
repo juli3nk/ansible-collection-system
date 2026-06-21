@@ -9,6 +9,7 @@
   when: outer_item.password is defined
 
 - name: Ensure specified users are present
+  become: true
   ansible.builtin.user:
     append: true
     name: "{{ outer_item.name }}"
@@ -47,6 +48,7 @@
   when: outer_item.create
 
 - name: Force password change on first login
+  become: true
   ansible.builtin.command:
     cmd: "chage -d 0 {{ outer_item.name }}"
   changed_when: false
@@ -56,6 +58,7 @@
       or (outer_item.password_from_username | default(false) | bool)
 
 - name: Ensure SSH directory exists in user home directory
+  become: true
   when:
     - outer_item.ssh
     - outer_item.create_home | default(true) | bool
@@ -80,6 +83,7 @@
       when: not results.stat.exists
 
 - name: Ensure authorized_keys are managed
+  become: true
   ansible.posix.authorized_key:
     user: "{{ outer_item.name }}"
     key: "{{ lookup('url', identity_gitrepo_url ~ '/' ~ item.gitrepo_username ~ '.keys', split_lines=False) }}"
@@ -94,6 +98,7 @@
     - identity_gitrepo_url is defined
 
 - name: Ensure admin users are added to admin group
+  become: true
   when:
     - outer_item.admin
   block:
@@ -118,7 +123,8 @@
         groups: "{{ identity_admin_group_name }}"
         append: true
 
-- name: Manage lingering for user
+- name: "Manage lingering for user {{ outer_item.name }}"
+  become: true
   when:
     - outer_item.create | default(false) | bool
   block:

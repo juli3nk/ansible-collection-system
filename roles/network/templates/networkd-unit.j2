@@ -2,6 +2,15 @@
 Name={{ item.match_name }}
 
 [Network]
+{% if item.ipv6_accept_ra is defined %}
+IPv6AcceptRA={{ 'yes' if item.ipv6_accept_ra | bool else 'no' }}
+{% endif %}
+{% if item.link_local_addressing is defined %}
+LinkLocalAddressing={{ item.link_local_addressing }}
+{% endif %}
+{% if item.configure_without_carrier | default(false) | bool %}
+ConfigureWithoutCarrier=yes
+{% endif %}
 {% if item.dhcp | default('') | length > 0 %}
 DHCP={{ item.dhcp }}
 {% endif %}
@@ -18,7 +27,15 @@ DNS={{ dns_server }}
 Domains={{ item.domains | join(' ') }}
 {% endif %}
 
-{% if item.required_for_online is defined %}
-[Link]
-RequiredForOnline={{ item.required_for_online }}
+{% if item.dhcp | default('') | length > 0 and (item.dhcp_route_metric is defined or item.dhcp_use_dns is defined) %}
+[DHCPv4]
+{% if item.dhcp_route_metric is defined %}
+RouteMetric={{ item.dhcp_route_metric }}
 {% endif %}
+{% if item.dhcp_use_dns is defined %}
+UseDNS={{ 'yes' if item.dhcp_use_dns | bool else 'no' }}
+{% endif %}
+{% endif %}
+
+[Link]
+RequiredForOnline={{ item.required_for_online | default('routable') }}

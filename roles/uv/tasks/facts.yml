@@ -1,0 +1,25 @@
+---
+- name: Build uv command paths per user
+  ansible.builtin.set_fact:
+    uv_cmd_by_user: >-
+      {{
+        (uv_cmd_by_user | default({}))
+        | combine({
+            item.item: item.stdout.split(':')[5] ~ '/' ~ uv_binary_relative_path
+          })
+      }}
+  loop: "{{ uv_user_getent_results.results | selectattr('rc', 'equalto', 0) | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Set uv_cmd fact for downstream roles
+  ansible.builtin.set_fact:
+    uv_cmd: "{{ uv_cmd_by_user[uv_cmd_effective_user] }}"
+  vars:
+    uv_cmd_effective_user: >-
+      {{
+        uv_cmd_user
+        if (uv_cmd_user | length > 0)
+        else (uv_users[0] if (uv_users | length) == 1 else '')
+      }}
+  when: uv_cmd_effective_user | length > 0

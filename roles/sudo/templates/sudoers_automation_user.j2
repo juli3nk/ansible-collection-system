@@ -1,3 +1,0 @@
-{{ ansible_managed | comment }}
-
-{{ sudo_automation_user }} ALL=(ALL) {{ 'NOPASSWD:' if sudo_automation_user_nopasswd else '' }}ALL

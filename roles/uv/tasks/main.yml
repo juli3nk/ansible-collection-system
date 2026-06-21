@@ -1,124 +1,16 @@
 ---
 - name: Validate uv role configuration
-  ansible.builtin.assert:
-    that:
-      - uv_users | length > 0
-      - uv_install_script_url | length > 0
-    fail_msg: >-
-      uv_users and uv_install_script_url must be set to install uv.
+  ansible.builtin.import_tasks: validate.yml
 
-- name: Gather installed package facts
-  become: true
-  ansible.builtin.package_facts:
-    manager: auto
-  when: ansible_facts.os_family == 'Debian'
-
-- name: Assert uv prerequisites are installed by package role
-  ansible.builtin.assert:
-    that:
-      - (uv_prerequisite_packages | difference(ansible_facts.packages.keys() | list)) | length == 0
-    fail_msg: >-
-      Missing prerequisite packages for uv role:
-      {{ uv_prerequisite_packages | difference(ansible_facts.packages.keys() | list) | join(', ') }}.
-      Install them via the package role before running uv.
-  when: ansible_facts.os_family == 'Debian'
-
-- name: Check uv users exist
-  become: true
-  ansible.builtin.command: "getent passwd {{ item }}"
-  register: uv_user_getent_results
-  changed_when: false
-  failed_when: false
-  loop: "{{ uv_users }}"
-
-- name: Ensure uv users are managed by identity role
-  ansible.builtin.assert:
-    that:
-      - item.rc == 0
-    fail_msg: >-
-      User '{{ item.item }}' does not exist. Create/manage this user in the
-      identity role before running the uv role.
-  loop: "{{ uv_user_getent_results.results }}"
-  loop_control:
-    label: "{{ item.item }}"
-
-- name: Remove uv binary for forced reinstall
-  become: true
-  ansible.builtin.file:
-    path: "{{ item.stdout.split(':')[5] }}/{{ uv_binary_relative_path }}"
-    state: absent
-  loop: "{{ uv_user_getent_results.results | selectattr('rc', 'equalto', 0) | list }}"
-  when: uv_force_install | bool
-
-- name: Install uv for user
-  become: true
-  ansible.builtin.shell: |
-    set -o pipefail
-    curl -LsSf {{ uv_install_script_url | quote }} | sh
-  args:
-    executable: /bin/bash
-    creates: "{{ item.stdout.split(':')[5] }}/{{ uv_binary_relative_path }}"
-  environment:
-    HOME: "{{ item.stdout.split(':')[5] }}"
-    UV_NO_CONFIG: "1"
+- name: Install uv for each user
+  ansible.builtin.include_tasks: install.yml
   loop: "{{ uv_user_getent_results.results | selectattr('rc', 'equalto', 0) | list }}"
   loop_control:
-    label: "{{ item.item }}"
+    label: "{{ uv_user.item }}"
+    loop_var: uv_user
 
-- name: Build uv command paths per user
-  ansible.builtin.set_fact:
-    uv_cmd_by_user: >-
-      {{
-        (uv_cmd_by_user | default({}))
-        | combine({
-            item.item: item.stdout.split(':')[5] ~ '/' ~ uv_binary_relative_path
-          })
-      }}
-  loop: "{{ uv_user_getent_results.results | selectattr('rc', 'equalto', 0) | list }}"
-  loop_control:
-    label: "{{ item.item }}"
-- name: Build uv command paths per user
-  ansible.builtin.set_fact:
-    uv_cmd_by_user: >-
-      {{
-        uv_user_getent_results.results
-        | selectattr('rc', 'equalto', 0)
-        | items2dict(key_name='item', value_name='stdout')
-        | dict2items
-        | map('combine', ...)
-      }}
+- name: Set uv facts for downstream roles
+  ansible.builtin.import_tasks: facts.yml
 
-- name: Set uv_cmd fact for downstream roles
-  ansible.builtin.set_fact:
-    uv_cmd: "{{ uv_cmd_by_user[uv_cmd_effective_user] }}"
-  vars:
-    uv_cmd_effective_user: >-
-      {{
-        uv_cmd_user
-        if (uv_cmd_user | length > 0)
-        else (uv_users[0] if (uv_users | length) == 1 else '')
-      }}
-  when: uv_cmd_effective_user | length > 0
-
-- name: Verify uv installation for managed users
-  become: true
-  ansible.builtin.command:
-    argv:
-      - runuser
-      - -u
-      - "{{ item.item }}"
-      - --
-      - "{{ uv_cmd_by_user[item.item] }}"
-      - --version
-  register: uv_version_results
-  changed_when: false
-  loop: "{{ uv_user_getent_results.results | selectattr('rc', 'equalto', 0) | list }}"
-  loop_control:
-    label: "{{ item.item }}"
-
-- name: Display installed uv versions
-  ansible.builtin.debug:
-    msg: "uv for {{ item.item }}: {{ item.stdout | trim }}"
-  loop: "{{ uv_version_results.results }}"
-  loop_control:
-    label: "{{ item.item }}"
+- name: Verify uv installation
+  ansible.builtin.import_tasks: verify.yml

@@ -1,0 +1,42 @@
+{{ ansible_managed | comment }}
+
+auto lo
+iface lo inet loopback
+
+{% for iface in network_static_member_interfaces | default([]) %}
+auto {{ iface.name }}
+iface {{ iface.name }} inet manual
+
+{% endfor %}
+{% for iface in network_static_host_interfaces | default([]) %}
+auto {{ iface.name }}
+iface {{ iface.name }} inet {{ iface.method }}
+{% if iface.method == 'static' %}
+    address {{ iface.address }}
+{% if iface.gateway | default('') | length > 0 %}
+    gateway {{ iface.gateway }}
+{% endif %}
+{% endif %}
+{% for alias in iface.aliases | default([]) %}
+    up ip addr add {{ alias }} dev {{ iface.name }}
+    down ip addr del {{ alias }} dev {{ iface.name }}
+{% endfor %}
+
+{% endfor %}
+{% for bridge in network_static_bridges | default([]) %}
+auto {{ bridge.name }}
+iface {{ bridge.name }} inet {{ bridge.method }}
+{% if bridge.method == 'static' %}
+    address {{ bridge.address }}
+{% if bridge.gateway | default('') | length > 0 %}
+    gateway {{ bridge.gateway }}
+{% endif %}
+{% endif %}
+    bridge_ports {{ bridge.interfaces | join(' ') }}
+    bridge_stp {{ 'on' if bridge.rstp | default(false) | bool else 'off' }}
+{% for alias in bridge.aliases | default([]) %}
+    up ip addr add {{ alias }} dev {{ bridge.name }}
+    down ip addr del {{ alias }} dev {{ bridge.name }}
+{% endfor %}
+
+{% endfor %}

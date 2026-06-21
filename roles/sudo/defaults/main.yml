@@ -1,22 +1,33 @@
 ---
+sudo_rules_dir: /etc/sudoers.d
 sudo_visudo_path: /usr/sbin/visudo
-
-sudo_manage_cloud_init_rule: true
-sudo_cloud_init_rule_path: /etc/sudoers.d/90-cloud-init-users
-
-# Automation account used by Ansible/cloud-init; checked before removing cloud-init sudoers.
-sudo_automation_user: "{{ ansible_user | default('') }}"
-sudo_manage_automation_user_rule: true
-sudo_cleanup_automation_user_rule: false
-sudo_automation_user_rule_path: /etc/sudoers.d/automation
-sudo_automation_user_nopasswd: true
-sudo_require_automation_user_in_admin_group: true
-
-sudo_manage_admin_group_rule: true
-sudo_admin_group_name: 'admin'
-sudo_admin_group_rule_path: /etc/sudoers.d/admin
-sudo_admin_group_nopasswd: true
 
 # Set value (e.g. 60) to manage sudo timeout; null disables.
 sudo_timestamp_timeout: null
 sudo_timeout_rule_path: /etc/sudoers.d/timeout
+
+sudo_rules_cleanup: false  # supprime les fichiers non gérés dans sudoers.d
+
+sudo_rules: []
+# Exemples:
+# sudo_rules:
+#   - name: deploy_user
+#     subject: "deploy"          # user ou %groupe
+#     nopasswd: true
+#     commands:
+#       - ALL
+#
+#   - name: ops_group
+#     subject: "%ops"
+#     nopasswd: false
+#     commands:
+#       - /usr/bin/systemctl
+#       - /usr/bin/apt
+#
+#   - name: mixed_rule
+#     subject: "bob"
+#     commands:
+#       - /usr/bin/visudo
+#     nopasswd_commands:
+#       - /usr/bin/systemctl
+#       - /usr/bin/apt

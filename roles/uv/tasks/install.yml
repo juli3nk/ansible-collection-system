@@ -1,0 +1,19 @@
+---
+- name: Remove uv binary for forced reinstall
+  become: true
+  ansible.builtin.file:
+    path: "{{ uv_user.stdout.split(':')[5] }}/{{ uv_binary_relative_path }}"
+    state: absent
+  when: uv_force_install | bool
+
+- name: Install uv
+  become: true
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -LsSf {{ uv_install_script_url | quote }} | sh
+  args:
+    executable: /bin/bash
+    creates: "{{ uv_user.stdout.split(':')[5] }}/{{ uv_binary_relative_path }}"
+  environment:
+    HOME: "{{ uv_user.stdout.split(':')[5] }}"
+    UV_NO_CONFIG: "1"

@@ -2,21 +2,36 @@
 # Network backend:
 # - networkmanager: enable NetworkManager, disable systemd-networkd
 # - systemd-networkd: enable systemd-networkd, disable NetworkManager
-# - static: disable both services (interfaces managed externally)
+# - static: ifupdown on Debian
 network_backend: systemd-networkd
 
+# Package management applies to backend-specific packages:
+# - networkmanager: network-manager
+# - static: ifupdown (Debian)
+# systemd-networkd is provided by systemd and has no separate package.
 network_manage_packages: true
 network_manage_services: true
 
+network_enable_ipv6: false
+
 network_networkmanager_package: network-manager
 network_networkmanager_service: NetworkManager
+
+# Static backend on Debian (ifupdown).
+network_debian_static_package: ifupdown
+network_debian_static_service: networking
+network_debian_static_interfaces_path: /etc/network/interfaces
 
 network_systemd_networkd_service: systemd-networkd
 network_systemd_networkd_wait_online_service: systemd-networkd-wait-online
 network_systemd_network_dir: /etc/systemd/network
 
-# High-level interface model (NixOS-like) used to generate systemd-networkd units.
-# Keys are interface names.
+# Interface patterns left unmanaged by systemd-networkd (containers, veth pairs).
+network_virtual_interface_patterns:
+  - ve-*
+  - veth*
+
+# Interface configuration. Keys are interface names or match patterns (e.g. en*).
 # Example:
 # network_interfaces:
 #   enp1s0:
@@ -24,18 +39,20 @@ network_systemd_network_dir: /etc/systemd/network
 #     address: null
 #     aliases: []
 #     gateway: null
+#   "en*":
+#     dhcp: true
 network_interfaces: {}
 
-# Optional systemd-networkd .network units rendered when backend=systemd-networkd.
-# These are appended after auto-generated units from network_interfaces.
+# Bridge definitions used by systemd-networkd and static backends.
 # Example:
-# network_networkd_units:
-#   - filename: 10-lan.network
-#     match_name: enp1s0
-#     dhcp: ipv4
-#     addresses: []
-#     gateway: ''
-#     dns_servers: []
-#     domains: []
-#     required_for_online: routable
-network_networkd_units: []
+# network_bridges:
+#   br0:
+#     interfaces:
+#       - enp1s0
+#     dhcp: true
+#     address: null
+#     aliases:
+#       - 192.168.1.200/24
+#     gateway: null
+#     rstp: false
+network_bridges: {}

@@ -4,3 +4,9 @@
   ansible.builtin.service:
     name: "{{ network_systemd_networkd_service }}"
     state: restarted
+
+- name: Reload static network configuration
+  become: true
+  ansible.builtin.command:
+    cmd: ifreload -a
+  changed_when: true

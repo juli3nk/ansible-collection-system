@@ -4,7 +4,8 @@
     that:
       - network_backend in ['networkmanager', 'systemd-networkd', 'static']
       - network_interfaces is mapping
-      - network_networkd_units is sequence and network_networkd_units is not string
+      - network_bridges is mapping
+      - network_virtual_interface_patterns is sequence and network_virtual_interface_patterns is not string
     fail_msg: >-
       Invalid network configuration. network_backend must be one of:
       networkmanager, systemd-networkd, static.
@@ -35,9 +36,9 @@
 
 - name: Detect available network services
   ansible.builtin.set_fact:
-    network_nm_service_exists: "{{ (network_nm_unit_check.rc | default(1)) == 0 }}"
-    network_networkd_service_exists: "{{ (network_networkd_unit_check.rc | default(1)) == 0 }}"
-    network_networkd_wait_online_service_exists: "{{ (network_networkd_wait_online_unit_check.rc | default(1)) == 0 }}"
+    network_nm_service_exists: "{{ network_nm_unit_check.stdout | default('') | length > 0 }}"
+    network_networkd_service_exists: "{{ network_networkd_unit_check.stdout | default('') | length > 0 }}"
+    network_networkd_wait_online_service_exists: "{{ network_networkd_wait_online_unit_check.stdout | default('') | length > 0 }}"
   when: network_manage_services
 
 - name: Configure NetworkManager backend
@@ -82,12 +83,6 @@
 - name: Configure systemd-networkd backend
   when: network_backend == 'systemd-networkd'
   block:
-    - name: Ensure NetworkManager package is absent
-      become: true
-      ansible.builtin.package:
-        pkg: "{{ network_networkmanager_package }}"
-        state: absent
-
     - name: Ensure NetworkManager service is disabled
       become: true
       ansible.builtin.systemd:
@@ -107,36 +102,140 @@
         group: root
         mode: '0755'
 
-    - name: Build generated systemd-networkd units from network_interfaces
+    - name: Build systemd-networkd unit lists
       ansible.builtin.set_fact:
-        network_generated_networkd_units: "{{ (network_generated_networkd_units | default([])) + [generated_unit] }}"
+        network_networkd_units_effective: "{{ _networkd_interface_units + _networkd_bridge_units + _networkd_bridge_member_units + _networkd_ignore_units }}"
+        network_networkd_netdevs_effective: "{{ _networkd_bridge_netdevs }}"
       vars:
-        generated_addresses: >-
+        _networkd_interface_units: >-
+          {%- set ns = namespace(units=[]) -%}
+          {%- for item in network_interfaces | dict2items | sort(attribute='key') -%}
+          {%- set v = item.value -%}
+          {%- if v.dhcp is string -%}
+          {%- set interface_dhcp = v.dhcp | length > 0 and v.dhcp != 'no' -%}
+          {%- set dhcp_val = v.dhcp -%}
+          {%- else -%}
+          {%- set interface_dhcp = v.dhcp | default(true) | bool -%}
+          {%- set dhcp_val = 'yes' if (interface_dhcp and network_enable_ipv6 | bool) else ('ipv4' if interface_dhcp else '') -%}
+          {%- endif -%}
+          {%- set addrs = v.aliases | default([]) -%}
+          {%- if not interface_dhcp and v.address is defined and v.address not in [none, ''] -%}
+          {%- set addrs = [v.address] + addrs -%}
+          {%- endif -%}
+          {%- set _ = ns.units.append({
+            'filename': v.filename | default('40-' + item.key + '.network'),
+            'template': 'networkd-unit.j2',
+            'match_name': item.key,
+            'dhcp': dhcp_val,
+            'addresses': addrs,
+            'gateway': v.gateway | default(''),
+            'dns_servers': v.dns_servers | default([]),
+            'domains': v.domains | default([]),
+            'ipv6_accept_ra': v.ipv6_accept_ra | default(network_enable_ipv6 | bool),
+            'link_local_addressing': v.link_local_addressing | default('yes' if network_enable_ipv6 | bool else 'ipv4'),
+            'dhcp_route_metric': v.dhcp_route_metric | default(100),
+            'required_for_online': v.required_for_online | default('routable')
+          }) -%}
+          {%- endfor -%}
+          {{ ns.units }}
+        _networkd_bridge_netdevs: >-
+          {%- set ns = namespace(units=[]) -%}
+          {%- for item in network_bridges | dict2items | sort(attribute='key') -%}
+          {%- set _ = ns.units.append({
+            'filename': '50-' + item.key + '.netdev',
+            'name': item.key,
+            'rstp': false
+          }) -%}
+          {%- endfor -%}
+          {{ ns.units }}
+        _networkd_bridge_member_units: >-
+          {%- set ns = namespace(units=[]) -%}
+          {%- for bridge in network_bridges | dict2items | sort(attribute='key') -%}
+          {%- for member in bridge.value.interfaces | default([]) -%}
+          {%- set _ = ns.units.append({
+            'filename': '45-' + bridge.key + '-' + member + '.network',
+            'template': 'networkd-bridge-member.j2',
+            'match_name': member,
+            'bridge': bridge.key
+          }) -%}
+          {%- endfor -%}
+          {%- endfor -%}
+          {{ ns.units }}
+        _networkd_bridge_units: >-
+          {%- set ns = namespace(units=[]) -%}
+          {%- for item in network_bridges | dict2items | sort(attribute='key') -%}
+          {%- set v = item.value -%}
+          {%- set bridge_dhcp = v.dhcp | default(false) | bool -%}
+          {%- set dhcp_val = 'yes' if (bridge_dhcp and network_enable_ipv6 | bool) else ('ipv4' if bridge_dhcp else '') -%}
+          {%- set addrs = v.aliases | default([]) -%}
+          {%- if not bridge_dhcp and v.address is defined and v.address not in [none, ''] -%}
+          {%- set addrs = [v.address] + addrs -%}
+          {%- endif -%}
+          {%- set _ = ns.units.append({
+            'filename': '50-' + item.key + '.network',
+            'template': 'networkd-unit.j2',
+            'match_name': item.key,
+            'dhcp': dhcp_val,
+            'addresses': addrs,
+            'gateway': v.gateway | default(''),
+            'dhcp_route_metric': 50,
+            'required_for_online': 'no',
+            'link_local_addressing': 'no',
+            'configure_without_carrier': true
+          }) -%}
+          {%- endfor -%}
+          {{ ns.units }}
+        _networkd_ignore_units: >-
           {{
-            (([item.value.address] if (item.value.address is defined and item.value.address not in [none, '']) else []))
-            + (item.value.aliases | default([]))
+            [{
+              'filename': '60-interfaces-ignore.network',
+              'template': 'networkd-ignore.j2',
+              'patterns': network_virtual_interface_patterns
+            }] if network_virtual_interface_patterns | length > 0 else []
           }}
-        generated_unit:
-          filename: "40-{{ item.key }}.network"
-          match_name: "{{ item.key }}"
-          dhcp: "{{ 'yes' if (item.value.dhcp | default(true) | bool) else 'no' }}"
-          addresses: "{{ generated_addresses }}"
-          gateway: "{{ item.value.gateway | default('') }}"
-      loop: "{{ network_interfaces | dict2items | sort(attribute='key') }}"
 
-    - name: Build effective systemd-networkd units list
-      ansible.builtin.set_fact:
-        network_networkd_units_effective: "{{ (network_generated_networkd_units | default([])) + (network_networkd_units | default([])) }}"
-
-    - name: Ensure systemd-networkd units are present
+    - name: Ensure systemd-networkd .network units are present
       become: true
       ansible.builtin.template:
-        src: networkd-unit.j2
+        src: "{{ item.template | default('networkd-unit.j2') }}"
         dest: "{{ network_systemd_network_dir }}/{{ item.filename }}"
         owner: root
         group: root
         mode: '0644'
       loop: "{{ network_networkd_units_effective }}"
+      notify: Restart systemd-networkd
+
+    - name: Ensure systemd-networkd .netdev units are present
+      become: true
+      ansible.builtin.template:
+        src: networkd-netdev.j2
+        dest: "{{ network_systemd_network_dir }}/{{ item.filename }}"
+        owner: root
+        group: root
+        mode: '0644'
+      loop: "{{ network_networkd_netdevs_effective }}"
+      notify: Restart systemd-networkd
+
+    - name: Find role-managed systemd-networkd unit files
+      become: true
+      ansible.builtin.find:
+        paths: "{{ network_systemd_network_dir }}"
+        patterns:
+          - '??-*.network'
+          - '??-*.netdev'
+      register: network_existing_unit_files
+
+    - name: Remove stale systemd-networkd unit files
+      become: true
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ network_existing_unit_files.files }}"
+      when: >-
+        item.path | basename not in (
+          (network_networkd_units_effective | map(attribute='filename') | list)
+          + (network_networkd_netdevs_effective | map(attribute='filename') | list)
+        )
       notify: Restart systemd-networkd
 
     - name: Ensure systemd-networkd service state
@@ -158,6 +257,26 @@
       when:
         - network_manage_services
         - network_networkd_wait_online_service_exists
+
+- name: Remove role-managed systemd-networkd unit files when not using networkd
+  when: network_backend != 'systemd-networkd'
+  block:
+    - name: Find role-managed systemd-networkd unit files
+      become: true
+      ansible.builtin.find:
+        paths: "{{ network_systemd_network_dir }}"
+        patterns:
+          - '??-*.network'
+          - '??-*.netdev'
+      register: network_unused_unit_files
+
+    - name: Remove role-managed systemd-networkd unit files
+      become: true
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ network_unused_unit_files.files }}"
+      when: network_unused_unit_files.matched | default(0) > 0
 
 - name: Include OS-specific tasks
   ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"

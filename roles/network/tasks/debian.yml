@@ -1,13 +1,6 @@
 ---
-- name: Configure static backend
-  when: network_backend == 'static'
+- name: Disable network management services
   block:
-    - name: Ensure NetworkManager package is absent
-      become: true
-      ansible.builtin.apt:
-        name: "{{ network_networkmanager_package }}"
-        state: absent
-
     - name: Ensure NetworkManager service is disabled
       become: true
       ansible.builtin.systemd:
@@ -16,7 +9,7 @@
         state: stopped
       when:
         - network_manage_services
-        - network_nm_service_exists
+        - network_nm_service_exists | default(false)
 
     - name: Ensure systemd-networkd service is disabled
       become: true
@@ -26,7 +19,7 @@
         state: stopped
       when:
         - network_manage_services
-        - network_networkd_service_exists
+        - network_networkd_service_exists | default(false)
 
     - name: Ensure systemd-networkd-wait-online service is disabled
       become: true
@@ -36,4 +29,98 @@
         state: stopped
       when:
         - network_manage_services
-        - network_networkd_wait_online_service_exists
+        - network_networkd_wait_online_service_exists | default(false)
+
+- name: Build static bridge member interface names
+  ansible.builtin.set_fact:
+    network_static_bridge_member_names: >-
+      {{
+        network_bridges | dict2items
+        | map(attribute='value.interfaces')
+        | flatten
+        | unique
+        | list
+      }}
+
+- name: Initialize static interface configuration lists
+  ansible.builtin.set_fact:
+    network_static_member_interfaces: []
+    network_static_host_interfaces: []
+    network_static_bridges: []
+
+- name: Build static bridge member interfaces
+  ansible.builtin.set_fact:
+    network_static_member_interfaces: "{{ network_static_member_interfaces + [member_iface] }}"
+  vars:
+    member_iface:
+      name: "{{ item }}"
+  loop: "{{ network_static_bridge_member_names | sort }}"
+  when: network_static_bridge_member_names | length > 0
+
+- name: Build static host interfaces
+  ansible.builtin.set_fact:
+    network_static_host_interfaces: "{{ network_static_host_interfaces + [host_iface] }}"
+  vars:
+    host_dhcp: "{{ item.value.dhcp | default(true) | bool }}"
+    host_iface:
+      name: "{{ item.key }}"
+      method: >-
+        {{
+          'dhcp' if host_dhcp
+          else ('static' if (item.value.address is defined and item.value.address not in [none, '']) else 'manual')
+        }}
+      address: "{{ item.value.address | default('') }}"
+      gateway: "{{ item.value.gateway | default('') }}"
+      aliases: "{{ item.value.aliases | default([]) }}"
+  loop: "{{ network_interfaces | dict2items | sort(attribute='key') }}"
+  when:
+    - item.key not in network_static_bridge_member_names
+    - "'*' not in item.key"
+    - "'?' not in item.key"
+
+- name: Build static bridges
+  ansible.builtin.set_fact:
+    network_static_bridges: "{{ network_static_bridges + [bridge_iface] }}"
+  vars:
+    bridge_dhcp: "{{ item.value.dhcp | default(false) | bool }}"
+    bridge_iface:
+      name: "{{ item.key }}"
+      method: >-
+        {{
+          'dhcp' if bridge_dhcp
+          else ('static' if (item.value.address is defined and item.value.address not in [none, '']) else 'manual')
+        }}
+      address: "{{ item.value.address | default('') }}"
+      gateway: "{{ item.value.gateway | default('') }}"
+      aliases: "{{ item.value.aliases | default([]) }}"
+      interfaces: "{{ item.value.interfaces | default([]) }}"
+      rstp: "{{ item.value.rstp | default(false) | bool }}"
+  loop: "{{ network_bridges | dict2items | sort(attribute='key') }}"
+
+- name: Configure static networking
+  when: (network_interfaces | length > 0) or (network_bridges | length > 0)
+  block:
+    - name: Ensure ifupdown package is present
+      become: true
+      ansible.builtin.package:
+        pkg: "{{ network_debian_static_package }}"
+        state: present
+      when: network_manage_packages | bool
+
+    - name: Ensure static interfaces configuration is present
+      become: true
+      ansible.builtin.template:
+        src: interfaces.j2
+        dest: "{{ network_debian_static_interfaces_path }}"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reload static network configuration
+
+    - name: Ensure networking service is enabled and running
+      become: true
+      ansible.builtin.systemd:
+        name: "{{ network_debian_static_service }}"
+        enabled: true
+        state: started
+      when: network_manage_services | bool

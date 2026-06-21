@@ -1,0 +1,14 @@
+{{ ansible_managed | comment }}
+
+{% set passwd_cmds = sudo_rule.commands | default([]) %}
+{% set nopasswd_cmds = sudo_rule.nopasswd_commands | default([]) %}
+{% if sudo_rule.nopasswd | default(false) and passwd_cmds %}
+{#  nopasswd global + commandes avec password #}
+{{ sudo_rule.subject }} ALL=(ALL) PASSWD: {{ passwd_cmds | join(', ') }}{% if nopasswd_cmds %}, NOPASSWD: {{ nopasswd_cmds | join(', ') }}{% endif %}
+
+{% elif sudo_rule.nopasswd | default(false) %}
+{{ sudo_rule.subject }} ALL=(ALL) NOPASSWD: {{ (passwd_cmds + nopasswd_cmds) | default(['ALL']) | join(', ') }}
+{% else %}
+{{ sudo_rule.subject }} ALL=(ALL) {% if passwd_cmds %}{{ passwd_cmds | join(', ') }}{% if nopasswd_cmds %}, {% endif %}{% endif %}{% if nopasswd_cmds %}NOPASSWD: {{ nopasswd_cmds | join(', ') }}{% endif %}{% if not passwd_cmds and not nopasswd_cmds %}ALL{% endif %}
+
+{% endif %}
